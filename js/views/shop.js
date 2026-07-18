@@ -16,7 +16,7 @@
   const { createItemCard } = App.itemCard;
   const { h, clearElement } = App.dom;
 
-  const DEFAULT_FILTERS = { category: "", rarity: 0, type: "", search: "" };
+  const DEFAULT_FILTERS = { category: "", rarities: [], type: "", search: "" };
 
   /**
    * Render the shop view into a container.
@@ -30,7 +30,7 @@
       if (item.gmOnly && !settings.gmMode) return false;
       if (!item.purchasable && !settings.showHorsCommerce) return false;
       if (filters.category && item.category !== filters.category) return false;
-      if (filters.rarity && item.rarity !== filters.rarity) return false;
+      if (filters.rarities.length && !filters.rarities.includes(item.rarity)) return false;
       if (filters.type && item.type !== filters.type) return false;
       if (filters.search && !item.name.toLowerCase().includes(filters.search.trim().toLowerCase())) return false;
       return true;
