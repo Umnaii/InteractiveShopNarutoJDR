@@ -10,6 +10,7 @@
  * @property {number[]} rarities - Empty array for all rarities, otherwise the selected tiers (1..5), OR'd together.
  * @property {string} type - "" for all, or an item type.
  * @property {string} search - Free-text name search.
+ * @property {string} sort - "" for catalogue order, or "price-asc" | "price-desc".
  */
 
 (function () {
@@ -101,11 +102,29 @@
     );
     typeSelect.value = state.type;
 
+    const sortSelect = h(
+      "select",
+      {
+        id: "filter-sort",
+        onChange: (event) => {
+          state.sort = event.target.value;
+          onChange({ ...state });
+        },
+      },
+      [
+        h("option", { value: "" }, "Ordre du catalogue"),
+        h("option", { value: "price-asc" }, "Prix croissant"),
+        h("option", { value: "price-desc" }, "Prix décroissant"),
+      ],
+    );
+    sortSelect.value = state.sort;
+
     return h("div", { class: "filter-bar" }, [
       h("div", { class: "field" }, [h("label", { for: "filter-search" }, "Recherche"), searchInput]),
       h("div", { class: "field" }, [h("label", { for: "filter-category" }, "Catégorie"), categorySelect]),
       rarityFieldset,
       h("div", { class: "field" }, [h("label", { for: "filter-type" }, "Type"), typeSelect]),
+      h("div", { class: "field" }, [h("label", { for: "filter-sort" }, "Tri"), sortSelect]),
     ]);
   }
 

@@ -16,7 +16,7 @@
   /**
    * Build an item card for the shop grid.
    * @param {object} item
-   * @param {{canBuy?: boolean, onBuy?: (itemId: string) => void}} [options]
+   * @param {{canBuy?: boolean, onBuy?: (itemId: string) => void, onAddToCart?: (itemId: string) => void}} [options]
    * @returns {HTMLElement}
    */
   function createItemCard(item, options) {
@@ -39,13 +39,29 @@
         )
       : null;
 
+    const cartButton = item.purchasable
+      ? h(
+          "button",
+          {
+            class: "btn btn--ghost btn--sm",
+            type: "button",
+            "aria-label": `Ajouter ${item.name} au panier`,
+            onClick: () => options.onAddToCart?.(item.id),
+          },
+          "+ Panier",
+        )
+      : null;
+
     return h("div", { class: "item-card" }, [
       h("div", { class: "item-card__top" }, [
         h("a", { class: "item-card__name", href: `#/item/${item.id}` }, item.name),
         createStarRating(item.rarity),
       ]),
       h("div", { class: "row" }, badges),
-      h("div", { class: "item-card__footer" }, [h("span", { class: "item-card__price" }, item.priceLabel), buyButton]),
+      h("div", { class: "item-card__footer" }, [
+        h("span", { class: "item-card__price" }, item.priceLabel),
+        h("div", { class: "row" }, [cartButton, buyButton].filter(Boolean)),
+      ]),
     ]);
   }
 
