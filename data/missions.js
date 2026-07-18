@@ -20,6 +20,10 @@
     { rank: "B", defaultReward: 130000, min: 80000, max: 200000 },
     { rank: "A", defaultReward: 400000, min: 150000, max: 1000000 },
     { rank: "S", defaultReward: 1500000, min: 1000000, max: null },
+    // Not a real mission rank: lets the GM log a one-off/non-canon payout (an event
+    // reward, a freebie, ...) through the same batch-payroll form, with no reward
+    // range to enforce.
+    { rank: "Libre", defaultReward: 0, min: 0, max: null },
   ];
 
   /** Fraction of the gross mission reward kept by the village. */
