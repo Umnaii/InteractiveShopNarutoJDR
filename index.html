@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Boutique Shinobi</title>
+  <meta name="description" content="Boutique shinobi hors-ligne pour la gestion des profils, achats et missions." />
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header__inner">
+      <h1 class="app-title">Boutique <span class="app-title__accent">Shinobi</span></h1>
+      <div id="profile-switcher" class="row" aria-label="Sélecteur de profil actif"></div>
+    </div>
+    <nav class="app-nav" aria-label="Navigation principale">
+      <ul id="app-nav-list" class="app-nav__list"></ul>
+    </nav>
+  </header>
+
+  <main id="app-view" class="app-main" aria-live="polite"></main>
+
+  <div id="modal-root"></div>
+
+  <!--
+    Plain scripts, no build step, no ES modules: this page works by double-clicking
+    index.html directly (file://), with no local server required. Every file attaches
+    its API to a single global `App` namespace object (see js/dom.js for the pattern),
+    so load order matters — each script below depends only on ones already loaded
+    above it. See STRUCTURE.md for the full dependency map.
+  -->
+  <script src="data/items.js"></script>
+  <script src="data/rarities.js"></script>
+  <script src="data/missions.js"></script>
+
+  <script src="js/dom.js"></script>
+  <script src="js/format.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/profiles.js"></script>
+  <script src="js/economy.js"></script>
+
+  <script src="js/components/star-rating.js"></script>
+  <script src="js/components/item-card.js"></script>
+  <script src="js/components/modal.js"></script>
+  <script src="js/components/filters.js"></script>
+
+  <script src="js/views/shop.js"></script>
+  <script src="js/views/item-detail.js"></script>
+  <script src="js/views/rarities.js"></script>
+  <script src="js/views/inventory.js"></script>
+  <script src="js/views/missions.js"></script>
+  <script src="js/views/profiles.js"></script>
+
+  <script src="js/router.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
