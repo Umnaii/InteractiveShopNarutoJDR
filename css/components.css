@@ -425,6 +425,14 @@
   padding: var(--space-5);
 }
 
+.modal--wide {
+  max-width: 48rem;
+}
+
+.modal__body {
+  overflow-x: auto;
+}
+
 .modal__header {
   display: flex;
   align-items: flex-start;
