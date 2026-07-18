@@ -21,7 +21,7 @@
     parseProfileExport,
     importProfile,
   } = App.profiles;
-  const { getRankOptions, formatRyo, formatSignedRyo, formatDateTime } = App.format;
+  const { getRankOptions, formatRyo, formatSignedRyo, formatDateTime, transactionKindLabel } = App.format;
   const { openModal, closeModal } = App.modal;
   const { h, clearElement } = App.dom;
 
@@ -53,6 +53,51 @@
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = h("a", { href: url, download: `boutique-shinobi-${slugify(profile.name)}.json` });
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Escape a single CSV field: wrap in quotes (doubling any inner quotes) whenever it
+   * contains a comma, quote or newline that would otherwise break the column layout.
+   * @param {*} value
+   * @returns {string}
+   */
+  function csvEscape(value) {
+    const text = String(value ?? "");
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  }
+
+  /**
+   * Build the full transaction history of a profile as CSV text (French column headers,
+   * newest first — same order as it's stored/displayed). UTF-8 with CRLF line endings.
+   * @param {object} profile
+   * @returns {string}
+   */
+  function buildHistoryCsv(profile) {
+    const header = ["Date", "Type", "Montant (Ryo)", "Raison"];
+    const rows = profile.history.map((transaction) => [
+      formatDateTime(transaction.timestamp),
+      transactionKindLabel(transaction.kind),
+      transaction.amount,
+      transaction.reason,
+    ]);
+    return [header, ...rows].map((row) => row.map(csvEscape).join(",")).join("\r\n");
+  }
+
+  /**
+   * Trigger a browser download of a profile's full transaction history as a CSV file.
+   * @param {object} profile
+   * @returns {void}
+   */
+  function downloadHistoryCsv(profile) {
+    // Leading BOM so Excel opens the accented French text as UTF-8 instead of guessing ANSI.
+    const BOM = String.fromCharCode(0xfeff);
+    const blob = new Blob([BOM + buildHistoryCsv(profile)], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = h("a", { href: url, download: `boutique-shinobi-historique-${slugify(profile.name)}.csv` });
     document.body.append(link);
     link.click();
     link.remove();
@@ -226,25 +271,73 @@
       ]);
     }
 
+    function buildTransactionRow(transaction) {
+      return h("div", { class: "transaction-item" }, [
+        h("span", {}, `${transaction.reason} — ${formatDateTime(transaction.timestamp)}`),
+        h(
+          "span",
+          { class: `transaction-item__amount transaction-item__amount--${transaction.amount >= 0 ? "positive" : "negative"}` },
+          formatSignedRyo(transaction.amount),
+        ),
+      ]);
+    }
+
     function buildHistoryPreview(profile) {
       if (!profile.history.length) {
         return h("p", { class: "text-faint" }, "Aucune transaction pour le moment.");
       }
       const recent = profile.history.slice(0, 5);
-      return h(
-        "div",
-        { class: "transaction-list" },
-        recent.map((transaction) =>
-          h("div", { class: "transaction-item" }, [
-            h("span", {}, `${transaction.reason} — ${formatDateTime(transaction.timestamp)}`),
-            h(
-              "span",
-              { class: `transaction-item__amount transaction-item__amount--${transaction.amount >= 0 ? "positive" : "negative"}` },
-              formatSignedRyo(transaction.amount),
-            ),
-          ]),
-        ),
+
+      const seeMoreButton = h(
+        "button",
+        { class: "btn btn--ghost btn--sm", type: "button" },
+        `Voir tout l'historique (${profile.history.length})`,
       );
+      seeMoreButton.addEventListener("click", () => openFullHistoryModal(profile));
+
+      return h("div", { class: "stack" }, [
+        h("div", { class: "transaction-list" }, recent.map(buildTransactionRow)),
+        seeMoreButton,
+      ]);
+    }
+
+    function openFullHistoryModal(profile) {
+      const exportCsvButton = h("button", { class: "btn", type: "button" }, "Exporter en CSV");
+      exportCsvButton.addEventListener("click", () => downloadHistoryCsv(profile));
+
+      const closeButton = h("button", { class: "btn btn--primary", type: "button" }, "Fermer");
+      closeButton.addEventListener("click", () => closeModal());
+
+      const table = h("table", { class: "table" }, [
+        h(
+          "thead",
+          {},
+          h("tr", {}, [h("th", {}, "Date"), h("th", {}, "Type"), h("th", {}, "Montant"), h("th", {}, "Raison")]),
+        ),
+        h(
+          "tbody",
+          {},
+          profile.history.map((transaction) =>
+            h("tr", {}, [
+              h("td", {}, formatDateTime(transaction.timestamp)),
+              h("td", {}, transactionKindLabel(transaction.kind)),
+              h(
+                "td",
+                { class: transaction.amount >= 0 ? "text-success" : "text-danger" },
+                formatSignedRyo(transaction.amount),
+              ),
+              h("td", {}, transaction.reason),
+            ]),
+          ),
+        ),
+      ]);
+
+      openModal({
+        title: `Historique complet — ${profile.name}`,
+        body: table,
+        footer: [exportCsvButton, closeButton],
+        wide: true,
+      });
     }
 
     function confirmDelete(profile) {
