@@ -19,29 +19,30 @@ css/
 data/
   items.js                    App.items: the full catalogue array, extracted from boutique_shinobi_catalogue.md, + category labels
   rarities.js                 App.rarities: the 5-tier rarity legend, + closing note
-  missions.js                 App.missions: mission ranks, village cut / party size / leader multiplier constants
+  missions.js                 App.missions: mission ranks (D..S, plus a "Libre" free-form rank), village cut / party size / leader multiplier constants
 
 js/
   main.js                     Entry point: boots state, builds header/nav, registers routes, starts the router
   router.js                   Tiny hash router: registerRoute(pattern, handler), navigate(path), initRouter() -> App.router
-  state.js                    In-memory app state singleton + subscribe/notify -> App.state. The ONLY module allowed to call App.storage
+  state.js                    In-memory app state singleton + subscribe/notify -> App.state. The ONLY module allowed to call App.storage. Also owns the session-only cart (not persisted)
   storage.js                  localStorage read/write, key naming, schema version + migrations -> App.storage. The ONLY module allowed to touch localStorage
   profiles.js                 Profile CRUD (create/rename/duplicate/delete/activate) + export/import as a portable JSON file -> App.profiles. Mutates state through App.state
-  economy.js                  ALL Ryo math: purchase, resale, consume, manual adjustment, mission payout breakdown/crediting -> App.economy
-  format.js                   Pure formatting helpers: Ryo strings, star glyphs, French labels, dates -> App.format
+  economy.js                  ALL Ryo math: purchase, cart checkout, undo-purchase, resale, consume, manual adjustment, mission payout breakdown/crediting + GM mission journal -> App.economy
+  format.js                   Pure formatting helpers: Ryo strings, star glyphs, French labels, dates, CSV field escaping -> App.format
   dom.js                      Tiny `h(tag, attrs, children)` element builder + clearElement() -> App.dom, shared by components/views
   components/
     star-rating.js               Renders a rarity integer as colored ★/☆ glyphs -> App.starRating
-    item-card.js                 Shop grid tile: name links to detail view, quick-buy button -> App.itemCard
-    modal.js                     Generic modal dialog (openModal/closeModal), used for delete confirmation -> App.modal
-    filters.js                   Shop filter bar: category/rarity/type/search controls -> App.filters
+    item-card.js                 Shop grid tile: name links to detail view, quick-buy + add-to-cart buttons -> App.itemCard
+    modal.js                     Generic modal dialog (openModal/closeModal), used for delete confirmation and the full transaction history table -> App.modal
+    filters.js                   Shop filter bar: category/rarity/type/search/sort controls -> App.filters
   views/
-    shop.js                      Route "/shop" — browse + filter the catalogue, quick-buy -> App.shopView
-    item-detail.js               Route "/item/:id" — full item info, buy with quantity -> App.itemDetailView
+    shop.js                      Route "/shop" — browse + filter + sort the catalogue, quick-buy or add to cart -> App.shopView
+    item-detail.js               Route "/item/:id" — full item info, buy or add to cart with quantity -> App.itemDetailView
+    cart.js                      Route "/cart" — review/adjust the cart, check out for the active profile -> App.cartView
     rarities.js                  Route "/rarities" — the rarity legend table -> App.raritiesView
-    inventory.js                 Route "/inventory" — active profile's owned items, consume/resell -> App.inventoryView
-    missions.js                  Route "/missions" — mission payout calculator + manual adjustment form -> App.missionsView
-    profiles.js                  Route "/profiles" — profile CRUD UI + transaction history preview -> App.profilesView
+    inventory.js                 Route "/inventory" — active profile's owned items, consume/resell/undo purchase -> App.inventoryView
+    missions.js                  Route "/missions" — mission payout calculator, manual adjustment form, GM-only mission journal (CSV export) -> App.missionsView
+    profiles.js                  Route "/profiles" — profile CRUD UI + transaction history preview/full history/CSV export -> App.profilesView
 ```
 
 This matches the layout requested at project kickoff, with one addition: `js/dom.js`. It
@@ -96,7 +97,7 @@ data/items.js, data/rarities.js, data/missions.js   (no dependencies)
   -> js/components/item-card.js                             (needs App.dom, App.starRating, App.format)
   -> js/components/modal.js                                 (needs App.dom)
   -> js/components/filters.js                               (needs App.dom, App.items, App.format)
-  -> js/views/*.js                                            (each needs whichever of the above it reads — see its header comment)
+  -> js/views/*.js                                            (each needs whichever of the above it reads — see its header comment; js/views/cart.js needs App.state, App.economy, App.format, App.dom)
   -> js/router.js                                              (no dependencies)
   -> js/main.js                                                 (needs everything; boots the app on DOMContentLoaded)
 ```
@@ -203,9 +204,39 @@ localStorage  <-->  App.storage  <-->  App.state  <-->  App.profiles / App.econo
  * @typedef {Object} Transaction
  * @property {string} id
  * @property {number} timestamp         // Date.now()
- * @property {"purchase"|"resale"|"mission"|"adjustment"} kind
+ * @property {"purchase"|"resale"|"mission"|"adjustment"|"undo"} kind
  * @property {number} amount            // signed Ryo delta
  * @property {string} reason            // French description
+ * @property {string} [itemId]          // set on "purchase" transactions only, so
+ *                                       // undoLastPurchase() can find the exact one to
+ *                                       // reverse without parsing `reason`
+ * @property {number} [quantity]        // paired with itemId above
+ */
+
+// runtime data, persisted via App.state/App.storage — the GM-only mission journal
+// (never shown on the player-facing profile view)
+/**
+ * @typedef {Object} MissionLogEntry
+ * @property {string} id
+ * @property {number} timestamp
+ * @property {string} rank              // "D" | "C" | "B" | "A" | "S" | "Libre"
+ * @property {number} gross
+ * @property {number} villageCut
+ * @property {number} net
+ * @property {number} partySize
+ * @property {boolean} leaderBonus
+ * @property {number} shareEach
+ * @property {number|null} leaderShare
+ * @property {string[]} participantNames // denormalized name snapshot, survives renames/deletes
+ * @property {string|null} leaderName
+ */
+
+// runtime data, held in js/state.js only — deliberately NOT persisted to localStorage
+// (see section 5). A staging area for a purchase in progress, not durable data.
+/**
+ * @typedef {Object} CartLine
+ * @property {string} itemId
+ * @property {number} quantity
  */
 ```
 
@@ -219,7 +250,12 @@ shinobi-shop:schema-version          -> "1"                (a bare integer strin
 shinobi-shop:v1:profiles             -> JSON array of Profile
 shinobi-shop:v1:active-profile-id    -> JSON string|null
 shinobi-shop:v1:settings             -> JSON { gmMode: boolean, showHorsCommerce: boolean }
+shinobi-shop:v1:mission-log          -> JSON array of MissionLogEntry (GM-only, newest first)
 ```
+
+**Not persisted here:** the cart (see the `CartLine` typedef in section 4) lives only in
+`js/state.js`'s in-memory `cart` variable — it deliberately has no `localStorage` key, so it
+resets on every page reload instead of accumulating stale staged purchases.
 
 **Migration strategy:** `js/storage.js` defines `SCHEMA_VERSION` as a constant. On load, it
 compares the stored `schema-version` marker to that constant. If a future change needs to

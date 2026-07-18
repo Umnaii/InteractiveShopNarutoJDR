@@ -13,20 +13,29 @@ stocké dans le `localStorage` du navigateur.
 
 - **Profils multiples** : créer, renommer, dupliquer, supprimer des personnages (Genin /
   Chûnin / Jônin), chacun avec son solde de Ryo, son inventaire et son historique de
-  transactions.
+  transactions. Depuis la page Profils, « Voir tout l'historique » ouvre le journal complet
+  d'un personnage et permet de le télécharger en CSV.
 - **Boutique** : parcourir les 10 catégories du catalogue (A à J), filtrer par catégorie,
-  rareté, type ou nom, afficher/masquer les objets hors-commerce, et un « mode Conteur »
-  pour révéler les objets réservés (substances restreintes, objets d'intrigue).
+  rareté (sélection multiple), type ou nom, trier par prix croissant/décroissant,
+  afficher/masquer les objets hors-commerce, et un « mode Conteur » pour révéler les objets
+  réservés (substances restreintes, objets d'intrigue).
+- **Panier** : ajoutez des objets (avec quantité) avant de les acheter pour voir le coût
+  total, ajustez les quantités ou retirez une ligne, puis validez l'achat en une seule
+  transaction pour le profil actif.
 - **Fiche objet** : détail complet (rareté, prix, conditions d'utilisation, effet chiffré),
-  accessible en cliquant un objet ou via une URL du type `#/item/kunai-explosif`.
+  accessible en cliquant un objet ou via une URL du type `#/item/kunai-explosif`, avec achat
+  immédiat ou ajout au panier.
 - **Légende des raretés** : le tableau ★ à ★★★★★ du catalogue, avec où trouver l'objet et
   ce que ça représente.
 - **Inventaire** : objets possédés par profil actif, groupés par catégorie, avec
-  consommation ou revente à 50 % du prix d'achat, et la valeur totale de l'inventaire.
-- **Missions & paie** : calculateur de rang de mission (D à S) avec récompense par défaut
-  et fourchette usuelle, part du village (15 %), répartition entre ninjas participants
-  (bonus 1,5 part pour le chef d'équipe en option), crédit en un clic vers un ou plusieurs
-  profils, plus un formulaire d'ajustement manuel (décision du conteur).
+  consommation, revente à 50 % du prix d'achat, ou **annulation d'un achat récent** (remboursement
+  intégral, pour corriger un achat par erreur), et la valeur totale de l'inventaire.
+- **Missions & paie** : calculateur de rang de mission (D à S, plus un rang « Libre / Autre »
+  pour un montant hors-barème) avec récompense par défaut et fourchette usuelle, part du
+  village (15 %), répartition entre ninjas participants (bonus 1,5 part pour le chef
+  d'équipe en option), crédit en un clic vers un ou plusieurs profils, un formulaire
+  d'ajustement manuel (décision du conteur), et un **journal des missions** (réservé au
+  conteur, non visible des joueurs) téléchargeable en CSV.
 - **Export / import de profil** : téléchargez un profil en fichier `.json` depuis la page
   Profils, et rechargez-le plus tard sur un autre appareil ou navigateur (voir ci-dessous).
 
@@ -50,10 +59,13 @@ données à gérer : uploadez le dossier, c'est fini.
 ## Persistance des données
 
 Tout est stocké dans le `localStorage` du navigateur, sous des clés préfixées
-`shinobi-shop:v1:...` (profils, profil actif, réglages d'affichage). Rien n'est envoyé sur
-le réseau — il n'y a ni backend ni base de données. Les données restent donc propres à un
-navigateur et un appareil : si vous jouez depuis plusieurs appareils, chacun aura son
-propre état local.
+`shinobi-shop:v1:...` (profils, profil actif, réglages d'affichage, journal des missions).
+Rien n'est envoyé sur le réseau — il n'y a ni backend ni base de données. Les données
+restent donc propres à un navigateur et un appareil : si vous jouez depuis plusieurs
+appareils, chacun aura son propre état local.
+
+Le **panier** fait exception : il n'est volontairement pas persisté, c'est une simple zone
+de préparation d'achat qui se vide au rechargement de la page.
 
 ### Transférer un profil vers un autre appareil
 
