@@ -18,6 +18,13 @@
     intrigue: "Objet d'intrigue",
   };
 
+  const TRANSACTION_KIND_LABELS = {
+    purchase: "Achat",
+    resale: "Revente",
+    mission: "Mission",
+    adjustment: "Ajustement",
+  };
+
   const RANK_LABELS = ["Genin", "Chûnin", "Jônin"];
 
   /**
@@ -72,6 +79,15 @@
     return TYPE_LABELS[type] ?? type;
   }
 
+  /**
+   * French label for a transaction kind.
+   * @param {"purchase"|"resale"|"mission"|"adjustment"} kind
+   * @returns {string}
+   */
+  function transactionKindLabel(kind) {
+    return TRANSACTION_KIND_LABELS[kind] ?? kind;
+  }
+
   /** @returns {string[]} The three playable ranks, in ascending order. */
   function getRankOptions() {
     return RANK_LABELS;
@@ -96,5 +112,14 @@
     }
   }
 
-  App.format = { formatRyo, formatSignedRyo, starGlyphs, categoryLabel, typeLabel, getRankOptions, formatDateTime };
+  App.format = {
+    formatRyo,
+    formatSignedRyo,
+    starGlyphs,
+    categoryLabel,
+    typeLabel,
+    transactionKindLabel,
+    getRankOptions,
+    formatDateTime,
+  };
 })();
