@@ -15,10 +15,11 @@
 
   /**
    * Open a modal dialog. Closes on Escape, backdrop click, or the close button.
-   * @param {{title: string, body: HTMLElement|HTMLElement[], footer?: HTMLElement|HTMLElement[], onClose?: () => void}} options
+   * @param {{title: string, body: HTMLElement|HTMLElement[], footer?: HTMLElement|HTMLElement[], onClose?: () => void, wide?: boolean}} options
+   *   `wide` widens the dialog for content that needs more room (e.g. a data table).
    * @returns {() => void} A function that closes this modal.
    */
-  function openModal({ title, body, footer, onClose }) {
+  function openModal({ title, body, footer, onClose, wide }) {
     const root = document.getElementById("modal-root");
     if (!root) throw new Error("Modal root element (#modal-root) is missing from the page.");
 
@@ -44,7 +45,7 @@
 
     const dialog = h(
       "div",
-      { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": title },
+      { class: wide ? "modal modal--wide" : "modal", role: "dialog", "aria-modal": "true", "aria-label": title },
       [
         h("div", { class: "modal__header" }, [
           h("h2", {}, title),
