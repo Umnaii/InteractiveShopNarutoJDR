@@ -10,7 +10,7 @@
   window.App = window.App || {};
 
   const { getItemById, getItemUnitPrice, getItemTotalPrice, purchaseItem } = App.economy;
-  const { getActiveProfile, getSettings, subscribe } = App.state;
+  const { getActiveProfile, getSettings, addToCart, subscribe } = App.state;
   const { createStarRating } = App.starRating;
   const { categoryLabel, typeLabel, formatRyo } = App.format;
   const { h, clearElement } = App.dom;
@@ -105,12 +105,27 @@
         "Acheter",
       );
 
+      const addToCartButton = h(
+        "button",
+        {
+          class: "btn btn--ghost",
+          type: "button",
+          onClick: () => {
+            const qty = Math.max(1, Math.floor(Number(quantityInput.value) || 1));
+            addToCart(item.id, qty);
+            window.alert(`${item.name} ×${qty} ajouté au panier.`);
+          },
+        },
+        "Ajouter au panier",
+      );
+
       const purchaseControls = item.purchasable
         ? h("div", { class: "stack" }, [
             h("div", { class: "row" }, [
               h("div", { class: "field" }, [h("label", { for: "item-detail-quantity" }, "Quantité"), quantityInput]),
               h("div", { class: "field" }, [h("label", {}, "Total"), totalLabel]),
               bulkButton,
+              addToCartButton,
               buyButton,
             ].filter(Boolean)),
             savingsLabel,

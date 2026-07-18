@@ -1,6 +1,7 @@
 /**
  * Missions & payroll view: log a mission's payout breakdown and credit it to one
- * or more profiles, plus a manual GM balance adjustment form.
+ * or more profiles, a manual GM balance adjustment form, and a GM-only mission
+ * journal (downloadable as CSV) — this page is the GM's own record, not shown to players.
  * Plain script: attaches its API to the shared App namespace as App.missionsView.
  * Depends on App.missions, App.state, App.economy, App.format, App.dom.
  */
@@ -10,10 +11,13 @@
   window.App = window.App || {};
 
   const { MISSION_RANKS, getMissionRank, DEFAULT_PARTY_SIZE, VILLAGE_CUT_RATE, LEADER_SHARE_MULTIPLIER } = App.missions;
-  const { getProfiles, subscribe } = App.state;
+  const { getProfiles, getMissionLog, subscribe } = App.state;
   const { computeMissionPayout, creditMissionPayout, adjustBalance } = App.economy;
-  const { formatRyo } = App.format;
+  const { formatRyo, formatDateTime, csvEscape } = App.format;
   const { h, clearElement } = App.dom;
+
+  /** How many recent mission-log entries to show inline; the CSV export always has everything. */
+  const MISSION_LOG_PREVIEW_SIZE = 10;
 
   /**
    * Render the missions & payroll view into a container.
@@ -50,7 +54,7 @@
         formState.leaderProfileId = null;
       }
 
-      container.append(buildMissionCard(profiles), buildAdjustmentCard(profiles));
+      container.append(buildMissionCard(profiles), buildAdjustmentCard(profiles), buildMissionLogCard());
     }
 
     /**
@@ -58,7 +62,11 @@
      * a full rebuild so typing in the reward/party-size fields keeps focus.
      */
     function buildMissionCard(profiles) {
-      const rankSelect = h("select", { id: "mission-rank" }, MISSION_RANKS.map((r) => h("option", { value: r.rank }, `Rang ${r.rank}`)));
+      const rankSelect = h(
+        "select",
+        { id: "mission-rank" },
+        MISSION_RANKS.map((r) => h("option", { value: r.rank }, r.rank === "Libre" ? "Libre / Autre" : `Rang ${r.rank}`)),
+      );
       rankSelect.value = formState.rank;
 
       const rewardInput = h("input", { type: "number", id: "mission-reward", min: "0", value: formState.totalReward });
@@ -220,6 +228,55 @@
       ]);
     }
 
+    /**
+     * Build the GM-only mission journal card: a compact preview of the most recent
+     * logged missions, plus a button to download the complete journal as CSV. This is
+     * deliberately not shown anywhere on the player-facing profile view.
+     */
+    function buildMissionLogCard() {
+      const missionLog = getMissionLog();
+
+      const downloadButton = h("button", { class: "btn btn--ghost btn--sm", type: "button" }, "Télécharger le journal complet (CSV)");
+      downloadButton.addEventListener("click", () => downloadMissionLogCsv(missionLog));
+
+      if (!missionLog.length) {
+        return h("div", { class: "card stack" }, [
+          h("h2", {}, "Journal des missions (conteur)"),
+          h("p", { class: "text-faint" }, "Aucune mission enregistrée pour le moment."),
+        ]);
+      }
+
+      const preview = missionLog.slice(0, MISSION_LOG_PREVIEW_SIZE);
+      const rows = preview.map((entry) =>
+        h("tr", {}, [
+          h("td", {}, formatDateTime(entry.timestamp)),
+          h("td", {}, entry.rank === "Libre" ? "Libre / Autre" : `Rang ${entry.rank}`),
+          h("td", {}, formatRyo(entry.gross)),
+          h("td", {}, String(entry.partySize)),
+          h("td", {}, entry.participantNames.join(", ")),
+        ]),
+      );
+
+      return h("div", { class: "card stack" }, [
+        h("div", { class: "row row--between" }, [h("h2", {}, "Journal des missions (conteur)"), downloadButton]),
+        h(
+          "p",
+          { class: "text-faint" },
+          missionLog.length > preview.length
+            ? `${preview.length} plus récentes sur ${missionLog.length} au total.`
+            : `${missionLog.length} mission(s) enregistrée(s).`,
+        ),
+        h("table", { class: "table" }, [
+          h(
+            "thead",
+            {},
+            h("tr", {}, [h("th", {}, "Date"), h("th", {}, "Rang"), h("th", {}, "Total brut"), h("th", {}, "Nb."), h("th", {}, "Participants")]),
+          ),
+          h("tbody", {}, rows),
+        ]),
+      ]);
+    }
+
     render();
     return subscribe(() => render());
   }
@@ -230,8 +287,48 @@
    * @returns {string}
    */
   function rewardHintText(rank) {
+    if (rank === "Libre") return "Montant libre, à définir selon la mission (événement, prime, à-côté...).";
     const info = getMissionRank(rank);
     return `Fourchette usuelle : ${formatRyo(info.min)} – ${info.max ? formatRyo(info.max) : "sans limite"}`;
+  }
+
+  /**
+   * Build the complete GM mission journal as CSV text (French column headers, newest
+   * first). UTF-8 with CRLF line endings, same convention as the transaction history export.
+   * @param {object[]} missionLog
+   * @returns {string}
+   */
+  function buildMissionLogCsv(missionLog) {
+    const header = ["Date", "Rang", "Total brut", "Part du village", "Net réparti", "Participants", "Chef d'équipe", "Part chef", "Part par membre"];
+    const rows = missionLog.map((entry) => [
+      formatDateTime(entry.timestamp),
+      entry.rank,
+      entry.gross,
+      entry.villageCut,
+      entry.net,
+      entry.participantNames.join("; "),
+      entry.leaderName ?? "",
+      entry.leaderShare ?? "",
+      entry.shareEach,
+    ]);
+    return [header, ...rows].map((row) => row.map(csvEscape).join(",")).join("\r\n");
+  }
+
+  /**
+   * Trigger a browser download of the complete GM mission journal as a CSV file.
+   * @param {object[]} missionLog
+   * @returns {void}
+   */
+  function downloadMissionLogCsv(missionLog) {
+    // Leading BOM so Excel opens the accented French text as UTF-8 instead of guessing ANSI.
+    const BOM = String.fromCharCode(0xfeff);
+    const blob = new Blob([BOM + buildMissionLogCsv(missionLog)], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = h("a", { href: url, download: "boutique-shinobi-journal-missions.csv" });
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   }
 
   App.missionsView = { renderMissionsView };

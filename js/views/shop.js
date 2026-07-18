@@ -10,13 +10,25 @@
   window.App = window.App || {};
 
   const { ITEMS, CATEGORY_LABELS } = App.items;
-  const { getSettings, setSettings, getActiveProfile, subscribe } = App.state;
-  const { purchaseItem } = App.economy;
+  const { getSettings, setSettings, getActiveProfile, addToCart, subscribe } = App.state;
+  const { purchaseItem, getItemUnitPrice } = App.economy;
   const { createFilterBar } = App.filters;
   const { createItemCard } = App.itemCard;
   const { h, clearElement } = App.dom;
 
-  const DEFAULT_FILTERS = { category: "", rarities: [], type: "", search: "" };
+  const DEFAULT_FILTERS = { category: "", rarities: [], type: "", search: "", sort: "" };
+
+  /**
+   * Sort items in place order by unit price, according to the filter bar's "sort" value.
+   * @param {object[]} items
+   * @param {string} sort - "" | "price-asc" | "price-desc".
+   * @returns {object[]}
+   */
+  function applySort(items, sort) {
+    if (sort !== "price-asc" && sort !== "price-desc") return items;
+    const direction = sort === "price-asc" ? 1 : -1;
+    return [...items].sort((a, b) => direction * (getItemUnitPrice(a) - getItemUnitPrice(b)));
+  }
 
   /**
    * Render the shop view into a container.
@@ -48,6 +60,10 @@
       }
     }
 
+    function handleAddToCart(itemId) {
+      addToCart(itemId, 1);
+    }
+
     function renderResults() {
       const settings = getSettings();
       const activeProfile = getActiveProfile();
@@ -62,7 +78,10 @@
       }
 
       for (const [letter, label] of Object.entries(CATEGORY_LABELS)) {
-        const itemsInCategory = visibleItems.filter((item) => item.category === letter);
+        const itemsInCategory = applySort(
+          visibleItems.filter((item) => item.category === letter),
+          filters.sort,
+        );
         if (!itemsInCategory.length) continue;
 
         resultsRoot.append(
@@ -72,7 +91,7 @@
               "div",
               { class: "grid shop-grid" },
               itemsInCategory.map((item) =>
-                createItemCard(item, { canBuy: Boolean(activeProfile), onBuy: handleBuy }),
+                createItemCard(item, { canBuy: Boolean(activeProfile), onBuy: handleBuy, onAddToCart: handleAddToCart }),
               ),
             ),
           ]),

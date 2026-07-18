@@ -11,7 +11,7 @@
 
   const { CATEGORY_LABELS } = App.items;
   const { getActiveProfile, subscribe } = App.state;
-  const { getItemById, getItemUnitPrice, getInventoryValue, resellItem, consumeItem } = App.economy;
+  const { getItemById, getItemUnitPrice, getInventoryValue, resellItem, consumeItem, undoLastPurchase } = App.economy;
   const { formatRyo } = App.format;
   const { createStarRating } = App.starRating;
   const { h, clearElement } = App.dom;
@@ -29,6 +29,11 @@
 
     function handleResell(profileId, item) {
       const result = resellItem(profileId, item.id, 1);
+      if (!result.ok) window.alert(result.message);
+    }
+
+    function handleUndo(profileId, item) {
+      const result = undoLastPurchase(profileId, item.id);
       if (!result.ok) window.alert(result.message);
     }
 
@@ -99,6 +104,16 @@
                               ? h("button", { class: "btn btn--sm", type: "button", onClick: () => handleConsume(profile.id, item) }, "Consommer")
                               : null,
                             h("button", { class: "btn btn--sm btn--danger", type: "button", onClick: () => handleResell(profile.id, item) }, "Revendre"),
+                            h(
+                              "button",
+                              {
+                                class: "btn btn--sm btn--ghost",
+                                type: "button",
+                                title: "Annule le dernier achat de cet objet et rembourse le prix payé (contrairement à la revente, à 50 %).",
+                                onClick: () => handleUndo(profile.id, item),
+                              },
+                              "Annuler l'achat",
+                            ),
                           ].filter(Boolean),
                         ),
                       ]),

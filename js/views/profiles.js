@@ -21,7 +21,7 @@
     parseProfileExport,
     importProfile,
   } = App.profiles;
-  const { getRankOptions, formatRyo, formatSignedRyo, formatDateTime, transactionKindLabel } = App.format;
+  const { getRankOptions, formatRyo, formatSignedRyo, formatDateTime, transactionKindLabel, csvEscape } = App.format;
   const { openModal, closeModal } = App.modal;
   const { h, clearElement } = App.dom;
 
@@ -57,17 +57,6 @@
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-  }
-
-  /**
-   * Escape a single CSV field: wrap in quotes (doubling any inner quotes) whenever it
-   * contains a comma, quote or newline that would otherwise break the column layout.
-   * @param {*} value
-   * @returns {string}
-   */
-  function csvEscape(value) {
-    const text = String(value ?? "");
-    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
   }
 
   /**
