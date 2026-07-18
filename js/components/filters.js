@@ -7,7 +7,7 @@
  *
  * @typedef {Object} ShopFilters
  * @property {string} category - "" for all, or "A".."J".
- * @property {number} rarity - 0 for all, or 1..5.
+ * @property {number[]} rarities - Empty array for all rarities, otherwise the selected tiers (1..5), OR'd together.
  * @property {string} type - "" for all, or an item type.
  * @property {string} search - Free-text name search.
  */
@@ -58,18 +58,35 @@
     );
     categorySelect.value = state.category;
 
-    const raritySelect = h(
-      "select",
-      {
-        id: "filter-rarity",
-        onChange: (event) => {
-          state.rarity = Number(event.target.value);
-          onChange({ ...state });
-        },
-      },
-      [h("option", { value: "0" }, "Toutes"), ...[1, 2, 3, 4, 5].map((tier) => h("option", { value: String(tier) }, "★".repeat(tier)))],
+    const rarityFieldset = h(
+      "fieldset",
+      { class: "field filter-bar__rarity" },
+      [
+        h("legend", {}, "Rareté"),
+        h(
+          "div",
+          { class: "rarity-filter" },
+          [1, 2, 3, 4, 5].map((tier) => {
+            const checkbox = h("input", {
+              type: "checkbox",
+              checked: state.rarities.includes(tier),
+              "aria-label": `Rareté ${tier} sur 5`,
+            });
+            checkbox.addEventListener("change", () => {
+              state.rarities = checkbox.checked
+                ? [...state.rarities, tier].sort((a, b) => a - b)
+                : state.rarities.filter((selected) => selected !== tier);
+              onChange({ ...state });
+            });
+            return h(
+              "label",
+              { class: "rarity-filter__option", "data-tier": String(tier), title: `Rareté ${tier} sur 5` },
+              [checkbox, "★".repeat(tier)],
+            );
+          }),
+        ),
+      ],
     );
-    raritySelect.value = String(state.rarity);
 
     const typeSelect = h(
       "select",
@@ -87,7 +104,7 @@
     return h("div", { class: "filter-bar" }, [
       h("div", { class: "field" }, [h("label", { for: "filter-search" }, "Recherche"), searchInput]),
       h("div", { class: "field" }, [h("label", { for: "filter-category" }, "Catégorie"), categorySelect]),
-      h("div", { class: "field" }, [h("label", { for: "filter-rarity" }, "Rareté"), raritySelect]),
+      rarityFieldset,
       h("div", { class: "field" }, [h("label", { for: "filter-type" }, "Type"), typeSelect]),
     ]);
   }
