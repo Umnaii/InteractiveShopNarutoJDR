@@ -23,6 +23,7 @@
     resale: "Revente",
     mission: "Mission",
     adjustment: "Ajustement",
+    undo: "Annulation",
   };
 
   const RANK_LABELS = ["Genin", "Chûnin", "Jônin"];
@@ -81,11 +82,23 @@
 
   /**
    * French label for a transaction kind.
-   * @param {"purchase"|"resale"|"mission"|"adjustment"} kind
+   * @param {"purchase"|"resale"|"mission"|"adjustment"|"undo"} kind
    * @returns {string}
    */
   function transactionKindLabel(kind) {
     return TRANSACTION_KIND_LABELS[kind] ?? kind;
+  }
+
+  /**
+   * Escape a single value for inclusion as one CSV field: wraps it in quotes (doubling
+   * any inner quotes) whenever it contains a comma, quote or newline. Shared by every
+   * CSV export in the app (transaction history, mission journal, ...).
+   * @param {*} value
+   * @returns {string}
+   */
+  function csvEscape(value) {
+    const text = String(value ?? "");
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
   }
 
   /** @returns {string[]} The three playable ranks, in ascending order. */

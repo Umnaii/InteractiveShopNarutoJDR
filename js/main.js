@@ -8,7 +8,7 @@
   "use strict";
   window.App = window.App || {};
 
-  const { initState, getProfiles, getActiveProfile, subscribe } = App.state;
+  const { initState, getProfiles, getActiveProfile, getCart, subscribe } = App.state;
   const { setActiveProfile } = App.profiles;
   const { registerRoute, initRouter } = App.router;
   const { renderShopView } = App.shopView;
@@ -17,11 +17,13 @@
   const { renderInventoryView } = App.inventoryView;
   const { renderMissionsView } = App.missionsView;
   const { renderProfilesView } = App.profilesView;
+  const { renderCartView } = App.cartView;
   const { formatRyo } = App.format;
   const { h, clearElement } = App.dom;
 
   const NAV_ITEMS = [
     { path: "/shop", label: "Boutique" },
+    { path: "/cart", label: "Panier" },
     { path: "/rarities", label: "Raretés" },
     { path: "/inventory", label: "Inventaire" },
     { path: "/missions", label: "Missions" },
@@ -36,8 +38,21 @@
     const list = document.getElementById("app-nav-list");
     clearElement(list);
     for (const item of NAV_ITEMS) {
-      list.append(h("li", {}, h("a", { class: "app-nav__link", href: `#${item.path}` }, item.label)));
+      const linkAttrs = { class: "app-nav__link", href: `#${item.path}` };
+      if (item.path === "/cart") linkAttrs.id = "nav-cart-link";
+      list.append(h("li", {}, h("a", linkAttrs, item.label)));
     }
+  }
+
+  /**
+   * Refresh the cart nav link's item count, e.g. "Panier (3)".
+   * @returns {void}
+   */
+  function updateCartBadge() {
+    const link = document.getElementById("nav-cart-link");
+    if (!link) return;
+    const count = getCart().reduce((sum, line) => sum + line.quantity, 0);
+    link.textContent = count > 0 ? `Panier (${count})` : "Panier";
   }
 
   /**
@@ -80,11 +95,14 @@
     initState();
     renderNav();
     renderProfileSwitcher();
+    updateCartBadge();
     subscribe(renderProfileSwitcher);
+    subscribe(updateCartBadge);
 
     const view = () => document.getElementById("app-view");
     registerRoute("/shop", () => renderShopView(view()));
     registerRoute("/item/:id", (params) => renderItemDetailView(view(), params.id));
+    registerRoute("/cart", () => renderCartView(view()));
     registerRoute("/rarities", () => renderRaritiesView(view()));
     registerRoute("/inventory", () => renderInventoryView(view()));
     registerRoute("/missions", () => renderMissionsView(view()));

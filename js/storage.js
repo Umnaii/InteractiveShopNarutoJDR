@@ -17,18 +17,20 @@
     profiles: `${STORAGE_PREFIX}:v${SCHEMA_VERSION}:profiles`,
     activeProfileId: `${STORAGE_PREFIX}:v${SCHEMA_VERSION}:active-profile-id`,
     settings: `${STORAGE_PREFIX}:v${SCHEMA_VERSION}:settings`,
+    missionLog: `${STORAGE_PREFIX}:v${SCHEMA_VERSION}:mission-log`,
   };
 
   /**
    * Build the default, empty-but-valid application state.
    * Used whenever localStorage is empty, corrupted, or missing keys.
-   * @returns {{profiles: Array, activeProfileId: string|null, settings: {gmMode: boolean, showHorsCommerce: boolean}}}
+   * @returns {{profiles: Array, activeProfileId: string|null, settings: {gmMode: boolean, showHorsCommerce: boolean}, missionLog: Array}}
    */
   function getDefaultAppState() {
     return {
       profiles: [],
       activeProfileId: null,
       settings: { gmMode: false, showHorsCommerce: false },
+      missionLog: [],
     };
   }
 
@@ -86,7 +88,7 @@
   /**
    * Load the full application state from localStorage, applying migrations and
    * falling back to a clean default state for any piece that is missing or corrupted.
-   * @returns {{profiles: Array, activeProfileId: string|null, settings: {gmMode: boolean, showHorsCommerce: boolean}}}
+   * @returns {{profiles: Array, activeProfileId: string|null, settings: {gmMode: boolean, showHorsCommerce: boolean}, missionLog: Array}}
    */
   function loadAppState() {
     ensureSchemaVersion();
@@ -95,6 +97,7 @@
     const profiles = readJSON(KEYS.profiles, defaults.profiles);
     const activeProfileId = readJSON(KEYS.activeProfileId, defaults.activeProfileId);
     const storedSettings = readJSON(KEYS.settings, defaults.settings);
+    const missionLog = readJSON(KEYS.missionLog, defaults.missionLog);
 
     return {
       profiles: Array.isArray(profiles) ? profiles : defaults.profiles,
@@ -103,6 +106,7 @@
         gmMode: Boolean(storedSettings?.gmMode),
         showHorsCommerce: Boolean(storedSettings?.showHorsCommerce),
       },
+      missionLog: Array.isArray(missionLog) ? missionLog : defaults.missionLog,
     };
   }
 
@@ -134,6 +138,15 @@
   }
 
   /**
+   * Persist the GM-only mission journal (see App.economy.creditMissionPayout).
+   * @param {Array} missionLog
+   * @returns {void}
+   */
+  function saveMissionLog(missionLog) {
+    writeJSON(KEYS.missionLog, missionLog);
+  }
+
+  /**
    * Erase all Boutique Shinobi data from localStorage, restoring a clean slate.
    * @returns {void}
    */
@@ -142,11 +155,20 @@
       window.localStorage.removeItem(KEYS.profiles);
       window.localStorage.removeItem(KEYS.activeProfileId);
       window.localStorage.removeItem(KEYS.settings);
+      window.localStorage.removeItem(KEYS.missionLog);
       window.localStorage.removeItem(KEYS.schemaVersion);
     } catch (error) {
       console.warn("[storage] Failed to reset data.", error);
     }
   }
 
-  App.storage = { getDefaultAppState, loadAppState, saveProfiles, saveActiveProfileId, saveSettings, resetAllData };
+  App.storage = {
+    getDefaultAppState,
+    loadAppState,
+    saveProfiles,
+    saveActiveProfileId,
+    saveSettings,
+    saveMissionLog,
+    resetAllData,
+  };
 })();

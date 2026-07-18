@@ -14,7 +14,7 @@
  * @typedef {Object} Transaction
  * @property {string} id
  * @property {number} timestamp
- * @property {"purchase"|"resale"|"mission"|"adjustment"} kind
+ * @property {"purchase"|"resale"|"mission"|"adjustment"|"undo"} kind
  * @property {number} amount - Signed Ryo delta.
  * @property {string} reason
  */
@@ -234,7 +234,7 @@
           .map((entry) => ({ itemId: entry.itemId, quantity: Math.floor(entry.quantity) }))
       : [];
 
-    const validKinds = ["purchase", "resale", "mission", "adjustment"];
+    const validKinds = ["purchase", "resale", "mission", "adjustment", "undo"];
     const history = Array.isArray(raw.history)
       ? raw.history
           .filter((entry) => entry && typeof entry === "object")

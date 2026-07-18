@@ -12,7 +12,7 @@
 
   const { ITEMS } = App.items;
   const { VILLAGE_CUT_RATE, LEADER_SHARE_MULTIPLIER } = App.missions;
-  const { getProfiles, setProfiles } = App.state;
+  const { getProfiles, setProfiles, getMissionLog, setMissionLog } = App.state;
   const { getProfileById } = App.profiles;
 
   /**
@@ -57,25 +57,29 @@
   }
 
   /**
-   * Generate a reasonably unique transaction id.
+   * Generate a reasonably unique id, prefixed for readability in storage/debugging.
+   * @param {string} prefix
    * @returns {string}
    */
-  function generateTransactionId() {
+  function generateEconomyId(prefix) {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-      return `txn-${crypto.randomUUID()}`;
+      return `${prefix}-${crypto.randomUUID()}`;
     }
-    return `txn-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
   }
 
   /**
-   * Build a transaction record.
-   * @param {"purchase"|"resale"|"mission"|"adjustment"} kind
+   * Build a transaction record. `itemId`/`quantity` are only set for purchase/resale
+   * transactions, so later code (e.g. undoLastPurchase) can identify exactly which
+   * purchase to reverse without having to parse the French `reason` text.
+   * @param {"purchase"|"resale"|"mission"|"adjustment"|"undo"} kind
    * @param {number} amount
    * @param {string} reason
+   * @param {{itemId?: string, quantity?: number}} [meta]
    * @returns {object}
    */
-  function createTransaction(kind, amount, reason) {
-    return { id: generateTransactionId(), timestamp: Date.now(), kind, amount, reason };
+  function createTransaction(kind, amount, reason, meta) {
+    return { id: generateEconomyId("txn"), timestamp: Date.now(), kind, amount, reason, ...meta };
   }
 
   /**
@@ -118,13 +122,115 @@
       ? profile.inventory.map((entry) => (entry.itemId === itemId ? { ...entry, quantity: entry.quantity + qty } : entry))
       : [...profile.inventory, { itemId, quantity: qty }];
 
-    const transaction = createTransaction("purchase", -totalPrice, `Achat : ${item.name} ×${qty}`);
+    const transaction = createTransaction("purchase", -totalPrice, `Achat : ${item.name} ×${qty}`, { itemId, quantity: qty });
 
     commitProfile({
       ...profile,
       balance: profile.balance - totalPrice,
       inventory,
       history: [transaction, ...profile.history],
+    });
+
+    return { ok: true };
+  }
+
+  /**
+   * Purchase every line of a cart (itemId + quantity) for a profile in a single atomic
+   * operation: the whole cart is validated (existence, purchasability, affordability of
+   * the combined total) before anything is committed, so a single unaffordable line can't
+   * leave the profile partially charged. Logs one "purchase" transaction per line, so
+   * per-item undo (undoLastPurchase) and the transaction history read exactly as if each
+   * line had been bought individually.
+   * @param {string} profileId
+   * @param {{itemId: string, quantity: number}[]} lines
+   * @returns {{ok: boolean, message?: string}}
+   */
+  function purchaseCart(profileId, lines) {
+    const profile = getProfileById(profileId);
+    if (!profile) return { ok: false, message: "Profil introuvable." };
+    if (!lines || !lines.length) return { ok: false, message: "Le panier est vide." };
+
+    const resolved = [];
+    for (const line of lines) {
+      const item = getItemById(line.itemId);
+      if (!item) return { ok: false, message: "Un objet du panier est introuvable." };
+      if (!item.purchasable) {
+        return { ok: false, message: `« ${item.name} » est hors-commerce et ne peut pas être acheté.` };
+      }
+      const qty = Math.max(1, Math.floor(line.quantity));
+      resolved.push({ item, qty, total: getItemTotalPrice(item, qty) });
+    }
+
+    const grandTotal = resolved.reduce((sum, { total }) => sum + total, 0);
+    if (profile.balance < grandTotal) {
+      return { ok: false, message: `Fonds insuffisants : le panier coûte ${grandTotal} Ryo, solde actuel ${profile.balance} Ryo.` };
+    }
+
+    let inventory = profile.inventory;
+    const transactions = [];
+    for (const { item, qty, total } of resolved) {
+      const existingEntry = inventory.find((entry) => entry.itemId === item.id);
+      inventory = existingEntry
+        ? inventory.map((entry) => (entry.itemId === item.id ? { ...entry, quantity: entry.quantity + qty } : entry))
+        : [...inventory, { itemId: item.id, quantity: qty }];
+      transactions.push(createTransaction("purchase", -total, `Achat : ${item.name} ×${qty}`, { itemId: item.id, quantity: qty }));
+    }
+
+    commitProfile({
+      ...profile,
+      balance: profile.balance - grandTotal,
+      inventory,
+      history: [...transactions, ...profile.history],
+    });
+
+    return { ok: true };
+  }
+
+  /**
+   * Undo the most recent still-reversible purchase of a given item for a profile,
+   * fully refunding it and removing the exact quantity purchased. Unlike resellItem
+   * (which pays out only 50% of the price), this reverses a specific purchase outright,
+   * for the "I bought the wrong thing" case. Only the original purchase transaction is
+   * removed from history (replaced by an "undo" record); it never touches other
+   * purchases of the same item, so calling it repeatedly walks back one purchase at a
+   * time. Refuses if that purchase's items have since been partially resold/consumed
+   * (inventory would go negative), since there's nothing consistent left to undo.
+   * @param {string} profileId
+   * @param {string} itemId
+   * @returns {{ok: boolean, message?: string}}
+   */
+  function undoLastPurchase(profileId, itemId) {
+    const profile = getProfileById(profileId);
+    if (!profile) return { ok: false, message: "Profil introuvable." };
+
+    const item = getItemById(itemId);
+    if (!item) return { ok: false, message: "Objet introuvable." };
+
+    const lastPurchase = profile.history.find((entry) => entry.kind === "purchase" && entry.itemId === itemId);
+    if (!lastPurchase) {
+      return { ok: false, message: `Aucun achat de « ${item.name} » à annuler.` };
+    }
+
+    const owned = profile.inventory.find((entry) => entry.itemId === itemId);
+    if (!owned || owned.quantity < lastPurchase.quantity) {
+      return { ok: false, message: `« ${item.name} » a déjà été revendu ou consommé : cet achat ne peut plus être annulé.` };
+    }
+
+    const inventory = profile.inventory
+      .map((entry) => (entry.itemId === itemId ? { ...entry, quantity: entry.quantity - lastPurchase.quantity } : entry))
+      .filter((entry) => entry.quantity > 0);
+
+    const refund = -lastPurchase.amount;
+    const transaction = createTransaction("undo", refund, `Annulation de l'achat : ${item.name} ×${lastPurchase.quantity}`, {
+      itemId,
+      quantity: lastPurchase.quantity,
+    });
+
+    commitProfile({
+      ...profile,
+      balance: profile.balance + refund,
+      inventory,
+      history: [transaction, ...profile.history.filter((entry) => entry.id !== lastPurchase.id)],
     });
 
     return { ok: true };
@@ -296,8 +402,27 @@
   }
 
   /**
-   * Credit a computed mission payout to one or more profiles in a single call,
-   * logging one transaction per profile.
+   * @typedef {Object} MissionLogEntry
+   * @property {string} id
+   * @property {number} timestamp
+   * @property {string} rank
+   * @property {number} gross
+   * @property {number} villageCut
+   * @property {number} net
+   * @property {number} partySize
+   * @property {boolean} leaderBonus
+   * @property {number} shareEach
+   * @property {number|null} leaderShare
+   * @property {string[]} participantNames - Snapshot of names at the time of the mission,
+   *   so the journal stays meaningful even if a profile is later renamed or deleted.
+   * @property {string|null} leaderName
+   */
+
+  /**
+   * Credit a computed mission payout to one or more profiles in a single call, logging
+   * one "mission" transaction per profile plus one GM-only MissionLogEntry summarizing
+   * the whole mission. The mission journal is a separate, GM-facing record (see
+   * App.state.getMissionLog) — it is never shown on the player-facing profile view.
    * @param {string[]} profileIds
    * @param {MissionPayoutBreakdown} breakdown
    * @param {string} rank
@@ -310,6 +435,8 @@
     }
 
     const profiles = getProfiles();
+    const participants = profiles.filter((profile) => profileIds.includes(profile.id));
+
     const updated = profiles.map((profile) => {
       if (!profileIds.includes(profile.id)) return profile;
 
@@ -326,6 +453,25 @@
     });
 
     setProfiles(updated);
+
+    const leaderProfile = leaderProfileId ? participants.find((profile) => profile.id === leaderProfileId) : null;
+    /** @type {MissionLogEntry} */
+    const logEntry = {
+      id: generateEconomyId("mission-log"),
+      timestamp: Date.now(),
+      rank,
+      gross: breakdown.gross,
+      villageCut: breakdown.villageCut,
+      net: breakdown.net,
+      partySize: breakdown.partySize,
+      leaderBonus: breakdown.leaderBonus,
+      shareEach: breakdown.shareEach,
+      leaderShare: breakdown.leaderShare,
+      participantNames: participants.map((profile) => profile.name),
+      leaderName: leaderProfile?.name ?? null,
+    };
+    setMissionLog([logEntry, ...getMissionLog()]);
+
     return { ok: true };
   }
 
@@ -334,6 +480,8 @@
     getItemUnitPrice,
     getItemTotalPrice,
     purchaseItem,
+    purchaseCart,
+    undoLastPurchase,
     resellItem,
     consumeItem,
     adjustBalance,
