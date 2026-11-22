@@ -1,8 +1,9 @@
 /**
  * Character sheet view ("Fiche"): the paper "ShinobiFichePerso.pdf" sheet of the active
- * profile, made interactive. Seven panels (Ninja, Combat, Techniques, Éléments, Aspects,
- * Sac, Progression): one at a time behind tabs on a phone, side by side in two columns on a
- * wide screen. A floating "Lancer les dés" button opens the dice launcher from anywhere.
+ * profile, made interactive. Six panels (Ninja, Techniques, Éléments, Aspects, Sac,
+ * Progression), one at a time behind tabs. A summary (gauges, initiative, purse, PX/PA,
+ * dice) stays in view: a sticky sidebar on wide screens, a compact block above the tabs on
+ * phones, where a floating "Lancer les dés" button also opens the dice launcher.
  *
  * Every change goes through App.sheet / App.profiles; this file only builds the DOM.
  * Text fields save as you type (debounced) WITHOUT rebuilding the view, so the phone
@@ -33,7 +34,6 @@
 
   const TABS = [
     { key: "ninja", label: "Ninja" },
-    { key: "combat", label: "Combat" },
     { key: "techniques", label: "Techniques" },
     { key: "elements", label: "Éléments" },
     { key: "aspects", label: "Aspects" },
@@ -44,7 +44,7 @@
   const TOAST_MS = 3500;
 
   /** Open tab, remembered for the whole session (also across navigations). */
-  let currentTab = "ninja";
+  let currentTab = TABS[0].key;
 
   // --- Small formatting helpers ---
 
@@ -688,7 +688,7 @@
       ]);
     }
 
-    // --- Combat panel: gauges, initiative ---
+    // --- Gauges, creation chakra, initiative (used by the sidebar and the Techniques panel) ---
 
     function gauge({ label, current, max, kind, status }) {
       const ratio = max > 0 ? Math.max(0, Math.min(1, current / max)) : 0;
@@ -704,99 +704,53 @@
       ]);
     }
 
-    function buildCombatPanel(ctx) {
-      const { profile, sheet, isCreation, budget } = ctx;
-      const vitality = sheet.vitality;
-      const chakra = sheet.chakra;
-      const status =
-        vitality.current <= -vitality.max
-          ? { kind: "dead", label: "Mort" }
-          : vitality.current <= 0
-            ? { kind: "out", label: "Hors combat" }
-            : null;
-      const actions = Math.max(0, vitality.current);
-
-      const vitalityBlock = h("div", { class: "combat-block" }, [
-        gauge({ label: "Énergie vitale", current: vitality.current, max: vitality.max, kind: "vitality", status }),
-        isCreation
-          ? h("p", { class: "field-hint" }, `Énergie vitale de départ ${profile.rank} : ${C.gradeRules(profile.rank).vitality}.`)
-          : h("div", { class: "combat-block__controls" }, [
-              stepper({
-                label: "Énergie vitale actuelle",
-                value: vitality.current,
-                focusKey: "vit",
-                minusDisabled: vitality.current <= -vitality.max,
-                plusDisabled: vitality.current >= vitality.max,
-                onMinus: () => report(S.changeVitality(profile.id, -1)),
-                onPlus: () => report(S.changeVitality(profile.id, 1)),
-              }),
-              h("div", { class: "combat-block__max" }, [
-                h("span", { class: "field-hint" }, "Max"),
-                paidValue(sheet, {
-                  label: "Énergie vitale max",
-                  value: vitality.max,
-                  purchase: C.vitalityUpgrade(sheet),
-                  focusKey: "buy-vit-max",
-                  onBuy: () => S.buyVitality(profile.id),
-                }),
-              ]),
-            ]),
-        h("p", { class: "combat-block__reminder" }, [
-          h("strong", {}, `${plural(actions, "action", "actions")} au maximum ce tour`),
-          " : l'énergie vitale actuelle donne le nombre d'actions. À 0 : hors combat ; à −max : mort. Le malus des blessures se gère à la table.",
+    /**
+     * Creation mode, Techniques panel: creation PA turned into chakra (1 PA = +2 chakra max),
+     * taken from the same PA budget as the techniques.
+     */
+    function buildCreationChakra(ctx) {
+      const { profile, sheet, budget } = ctx;
+      return h("div", { class: "creation-chakra" }, [
+        h("div", {}, [
+          h("strong", {}, "PA en chakra"),
+          h("p", { class: "field-hint" }, `1 PA = +2 chakra max. Base ${profile.rank} : ${C.gradeRules(profile.rank).chakra}, soit ${sheet.chakra.max} chakra max avec ces PA.`),
         ]),
+        stepper({
+          label: "PA de création dépensés en chakra",
+          value: sheet.creationChakraPa,
+          focusKey: "creation-chakra",
+          minusDisabled: sheet.creationChakraPa <= 0,
+          plusDisabled: budget.pa.remaining <= 0,
+          plusTitle: budget.pa.remaining <= 0 ? "Plus de PA de création" : undefined,
+          onMinus: () => report(S.changeCreationChakraPa(profile.id, -1)),
+          onPlus: () => report(S.changeCreationChakraPa(profile.id, 1)),
+        }),
       ]);
+    }
 
-      const chakraBlock = h("div", { class: "combat-block" }, [
-        gauge({ label: "Chakra", current: chakra.current, max: chakra.max, kind: "chakra" }),
-        isCreation
-          ? h("div", { class: "combat-block__controls" }, [
-              h("div", { class: "combat-block__max" }, [
-                h("span", { class: "field-hint" }, `PA en chakra (1 PA = +2 chakra max) · base ${profile.rank} ${C.gradeRules(profile.rank).chakra}`),
-                stepper({
-                  label: "PA de création dépensés en chakra",
-                  value: sheet.creationChakraPa,
-                  focusKey: "creation-chakra",
-                  minusDisabled: sheet.creationChakraPa <= 0,
-                  plusDisabled: budget.pa.remaining <= 0,
-                  plusTitle: budget.pa.remaining <= 0 ? "Plus de PA de création" : undefined,
-                  onMinus: () => report(S.changeCreationChakraPa(profile.id, -1)),
-                  onPlus: () => report(S.changeCreationChakraPa(profile.id, 1)),
-                }),
-              ]),
-            ])
-          : h("div", { class: "combat-block__controls" }, [
-              stepper({
-                label: "Chakra actuel",
-                value: chakra.current,
-                focusKey: "chakra",
-                minusDisabled: chakra.current <= 0,
-                plusDisabled: chakra.current >= chakra.max,
-                onMinus: () => report(S.changeChakra(profile.id, -1)),
-                onPlus: () => report(S.changeChakra(profile.id, 1)),
-              }),
-              h("button", { class: "btn", type: "button", "data-focus-key": "chakra-full", disabled: chakra.current >= chakra.max, onClick: () => report(S.restoreChakra(profile.id)) }, "Remettre au max"),
-              h("div", { class: "combat-block__max" }, [
-                h("span", { class: "field-hint" }, "Max"),
-                paidValue(sheet, {
-                  label: "Chakra max",
-                  value: chakra.max,
-                  purchase: C.chakraUpgrade(sheet),
-                  gain: `+${R.PROGRESSION.chakraGain}`,
-                  focusKey: "buy-chakra-max",
-                  onBuy: () => S.buyChakra(profile.id),
-                }),
-              ]),
-            ]),
-        !isCreation ? h("p", { class: "field-hint" }, "Repos, méditation ou appel négatif d'un aspect pour récupérer du chakra.") : null,
-      ]);
-
-      return panel("combat", "Combat", [
-        vitalityBlock,
-        chakraBlock,
-        buildInitiative(ctx),
-        h("button", { class: "btn btn--primary btn--block", type: "button", "data-focus-key": "open-dice", onClick: () => openDiceLauncher(profile.id) }, "Lancer les dés (d10)"),
-      ]);
+    /**
+     * The initiative tool (roll + token piles) in a dialog, opened from the sidebar. It
+     * rebuilds itself on every state change while open.
+     */
+    function openInitiativeModal() {
+      const body = h("div", { class: "stack initiative" });
+      function renderBody() {
+        const profile = getActiveProfile();
+        if (!profile) return closeModal();
+        const sheet = S.getSheet(profile);
+        rerenderKeepingFocus(body, () => {
+          clearElement(body);
+          body.append(...buildInitiative({ profile, sheet }));
+        });
+      }
+      const unsubscribeModal = subscribe(renderBody);
+      renderBody();
+      openModal({
+        title: "Initiative",
+        body,
+        onClose: unsubscribeModal,
+        footer: [h("button", { class: "btn btn--primary", type: "button", onClick: () => closeModal() }, "Fermer")],
+      });
     }
 
     function buildInitiative(ctx) {
@@ -894,7 +848,7 @@
         );
       }
 
-      return h("div", { class: "combat-block initiative" }, [h("h3", { class: "combat-block__title" }, "Initiative"), ...content]);
+      return content;
     }
 
     // --- Techniques panel ---
@@ -1085,6 +1039,7 @@
         isCreation
           ? h("p", { class: "field-hint" }, `PA de création : ${budget.pa.remaining >= 0 ? `${budget.pa.remaining} restant${budget.pa.remaining > 1 ? "s" : ""}` : `dépassé de ${-budget.pa.remaining}`} sur ${budget.pa.total}. Nouvelle technique 1 PA ; D → C → A : 1 PA par niveau ; A → M → P → S : 2 PA par niveau. Les trois techniques de départ sont offertes.`)
           : h("p", { class: "field-hint" }, "Création validée : la maîtrise ne monte qu'avec le bouton « Maîtrise → » (en PA), et une nouvelle technique coûte 1 PA (ou un parchemin de technique acheté au shop)."),
+        isCreation ? buildCreationChakra(ctx) : null,
         sheet.techniques.length
           ? h("ol", { class: "technique-list" }, sheet.techniques.map((technique) => buildTechniqueRow(ctx, technique)))
           : h("p", { class: "empty-state" }, "Aucune technique."),
@@ -1190,10 +1145,14 @@
       });
       const others = candidates.filter((nature) => !highlighted.includes(nature));
 
-      return panel("elements", "Éléments", [
+      // Two blocks: the wheel (left on wide screens) and its settings (right).
+      return panel("elements", "Éléments", h("div", { class: "elements-layout" }, [
+        h("div", { class: "elements-layout__wheel" }, [
         h("div", { class: "wheel-frame" }, createElementWheel(sheet)),
         h("p", { class: "field-hint" }, "Feu > Vent > Foudre > Terre > Eau > Feu : l'élément dominant gagne 5 succès contre l'élément dominé. La valeur d'un élément s'ajoute (ou se retire) en succès aux techniques de cet élément."),
-        h("div", { class: "sheet-subhead" }, [
+        ]),
+        h("div", { class: "elements-layout__settings" }, [
+        h("div", { class: "sheet-subhead sheet-subhead--first" }, [
           h("h3", {}, "Affinités"),
           h("p", { class: "field-hint" }, isCreation ? "Choisissez librement ; les éléments restants passent à −1. Un élément ne peut pas avoir deux rôles." : "Création validée : les affinités sont figées et un élément ne monte qu'en dépensant des PA (1 PA tant qu'il est à 0 ou moins, puis le niveau visé ; 3 éléments au plus au-dessus de 0)."),
         ]),
@@ -1208,7 +1167,8 @@
           h("summary", {}, `Toutes les natures et leurs prérequis (${others.length})`),
           h("ul", { class: "nature-list" }, others.map((nature) => natureRow(ctx, nature))),
         ]),
-      ]);
+        ]),
+      ]));
     }
 
     // --- Aspects panel ---
@@ -1569,7 +1529,7 @@
         isCreation ? notice("info", "En création, les points se répartissent avec les budgets du grade. Les achats en PX / PA s'ouvrent en mode Jeu (« Valider la création »).") : null,
         h("div", { class: "counter-grid" }, [buildCounter(ctx, "px", "PX · points d'expérience"), buildCounter(ctx, "pa", "PA · points d'apprentissage")]),
         h("p", { class: "field-hint" }, "Après chaque séance, ajoutez les PX et PA gagnés (2 h de jeu = 1 PX et 1 PA ; séance mission 2 PX + 2 PA ; roleplay 4 PA ; combat 4 PX ; + bonus d'accomplissement)."),
-        ...groups.map((group) => h("div", { class: "purchase-group" }, [h("h3", { class: "purchase-group__title" }, group.title), h("ul", { class: "purchase-list" }, group.rows)])),
+        h("div", { class: "purchase-groups" }, groups.map((group) => h("div", { class: "purchase-group" }, [h("h3", { class: "purchase-group__title" }, group.title), h("ul", { class: "purchase-list" }, group.rows)]))),
         h("div", { class: "sheet-subhead" }, [h("h3", {}, "Historique des dépenses")]),
         history,
         h(
@@ -1615,6 +1575,91 @@
       );
     }
 
+    /**
+     * The ninja's live state, always in view: gauges with quick +/−, actions this turn,
+     * initiative (opens its dialog), waiting aspects, purse, PX/PA available and the dice
+     * button. A sticky left column on wide screens, a compact block above the tabs on phones.
+     * Raising énergie vitale max / chakra max is done in Progression.
+     */
+    function buildSidebar(ctx) {
+      const { profile, sheet, isCreation } = ctx;
+      const { vitality, chakra } = sheet;
+      const status =
+        vitality.current <= -vitality.max
+          ? { kind: "dead", label: "Mort" }
+          : vitality.current <= 0
+            ? { kind: "out", label: "Hors combat" }
+            : null;
+      const actions = Math.max(0, vitality.current);
+      const xp = C.experienceSummary(sheet);
+      const pending = sheet.pendingAspects.map((key) => R.ASPECT_EFFECTS.find((effect) => effect.key === key)).filter(Boolean);
+      const init = sheet.initiative;
+      const phases = init.total !== null && C.validatePiles(init.piles, init.total, actions).ok ? [...init.piles].sort((a, b) => b - a) : null;
+
+      const sideStepper = (label, value, focusKey, minusDisabled, plusDisabled, onMinus, onPlus) =>
+        stepper({ label, value, focusKey, minusDisabled, plusDisabled, onMinus: () => report(onMinus()), onPlus: () => report(onPlus()) });
+
+      return h("aside", { class: "sheet-side", "aria-label": "Résumé du ninja" }, [
+        h("div", { class: "side-card side-card--gauge" }, [
+          gauge({ label: "Énergie vitale", current: vitality.current, max: vitality.max, kind: "vitality", status }),
+          isCreation
+            ? null
+            : h("div", { class: "side-card__row" }, [
+                sideStepper("Énergie vitale actuelle", vitality.current, "side-vit", vitality.current <= -vitality.max, vitality.current >= vitality.max,
+                  () => S.changeVitality(profile.id, -1), () => S.changeVitality(profile.id, 1)),
+                h(
+                  "span",
+                  { class: "side-card__actions", title: "L'énergie vitale actuelle donne le nombre maximum d'actions du tour. À 0 : hors combat ; à −max : mort. Le malus des blessures se gère à la table." },
+                  [h("strong", {}, String(actions)), ` action${actions > 1 ? "s" : ""} ce tour`],
+                ),
+              ]),
+        ]),
+        h("div", { class: "side-card side-card--gauge" }, [
+          gauge({ label: "Chakra", current: chakra.current, max: chakra.max, kind: "chakra" }),
+          isCreation
+            ? null
+            : h("div", { class: "side-card__row" }, [
+                sideStepper("Chakra actuel", chakra.current, "side-chakra", chakra.current <= 0, chakra.current >= chakra.max,
+                  () => S.changeChakra(profile.id, -1), () => S.changeChakra(profile.id, 1)),
+                h("button", { class: "btn btn--sm", type: "button", "data-focus-key": "side-chakra-full", disabled: chakra.current >= chakra.max, onClick: () => report(S.restoreChakra(profile.id)) }, "Max"),
+              ]),
+        ]),
+        isCreation
+          ? h("p", { class: "field-hint" }, "Jauges, appels d'aspects et dépenses de PX / PA s'ouvrent en mode Jeu.")
+          : null,
+        isCreation
+          ? null
+          : h("div", { class: "side-card side-card--initiative" }, [
+              h("div", { class: "side-card__row" }, [
+                h("span", { class: "side-card__line" }, [
+                  init.total !== null ? "Initiative : " : "Initiative",
+                  init.total !== null ? h("strong", {}, `${init.total} jetons`) : null,
+                  phases ? h("span", { class: "side-card__phases" }, `phases ${phases.join(", ")}`) : null,
+                ]),
+                h("button", { class: "btn btn--sm", type: "button", "data-focus-key": "side-init", onClick: openInitiativeModal }, init.total !== null ? "Ouvrir" : "Lancer"),
+              ]),
+            ]),
+        pending.length
+          ? h("div", { class: "side-card__pending" }, [h("span", { class: "field-hint" }, "Aspects en attente :"), ...pending.map((effect) => h("span", { class: "pending-chip" }, effect.short))])
+          : null,
+        h("div", { class: "side-card side-card--split" }, [
+          h("button", { class: "side-stat", type: "button", "data-focus-key": "side-purse", title: "Ouvrir l'onglet Sac", onClick: () => goToPanel("sac") }, [
+            h("span", { class: "side-stat__value side-stat__value--ryo" }, formatRyo(profile.balance)),
+            h("span", { class: "side-stat__label" }, "Bourse"),
+          ]),
+          h("button", { class: "side-stat", type: "button", "data-focus-key": "side-xp", title: "Ouvrir l'onglet Progression", onClick: () => goToPanel("progression") }, [
+            h("span", { class: "side-stat__value" }, `${xp.px.available} PX · ${xp.pa.available} PA`),
+            h("span", { class: "side-stat__label" }, "Disponibles"),
+          ]),
+        ]),
+        h(
+          "button",
+          { class: "btn btn--primary btn--block side-dice", type: "button", "data-focus-key": "side-dice", onClick: () => openDiceLauncher(profile.id) },
+          [h("span", { class: "dice-fab__icon", "aria-hidden": "true" }, "d10"), "Lancer les dés"],
+        ),
+      ]);
+    }
+
     function render() {
       clearElement(container);
       liveRefs = {};
@@ -1635,10 +1680,18 @@
         h("div", { class: `sheet${isCreation ? " sheet--creation" : ""}` }, [
           warning,
           buildHeader(ctx),
-          buildTabs(),
-          h("div", { class: "sheet-layout" }, [
-            h("div", { class: "sheet-col sheet-col--main" }, [buildNinjaPanel(ctx), buildTechniquesPanel(ctx), buildProgressionPanel(ctx)]),
-            h("div", { class: "sheet-col sheet-col--side" }, [buildCombatPanel(ctx), buildAspectsPanel(ctx), buildElementsPanel(ctx), buildSacPanel(ctx)]),
+          // Phone: tabs then one panel. Wide screen: sticky sidebar on the left, tabs + panel on the right.
+          h("div", { class: "sheet-body" }, [
+            buildSidebar(ctx),
+            h("div", { class: "sheet-main" }, [
+              buildTabs(),
+              buildNinjaPanel(ctx),
+              buildTechniquesPanel(ctx),
+              buildElementsPanel(ctx),
+              buildAspectsPanel(ctx),
+              buildSacPanel(ctx),
+              buildProgressionPanel(ctx),
+            ]),
           ]),
           buildDiceFab(profile),
         ]),

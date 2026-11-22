@@ -1,8 +1,8 @@
 /**
  * Shop view: browse the catalogue grouped by category, filter it, and buy items
- * for the active profile.
+ * for the active profile. The rarity legend sits at the bottom of the page.
  * Plain script: attaches its API to the shared App namespace as App.shopView.
- * Depends on App.items, App.state, App.economy, App.filters, App.itemCard, App.dom, App.poof.
+ * Depends on App.items, App.state, App.economy, App.filters, App.itemCard, App.dom, App.poof, App.raritiesView.
  */
 
 (function () {
@@ -16,6 +16,7 @@
   const { createItemCard } = App.itemCard;
   const { playPoof } = App.poof;
   const { h, clearElement, rerenderKeepingScroll } = App.dom;
+  const { buildRarityLegend } = App.raritiesView;
 
   const DEFAULT_FILTERS = { category: "", rarities: [], type: "", search: "", sort: "" };
 
@@ -133,9 +134,11 @@
     filterBar.append(toggles);
 
     container.append(
-      h("div", { class: "view-header" }, [h("div", {}, [h("h1", {}, "Boutique"), h("p", {}, "Parcourez le catalogue et achetez pour le profil actif.")])]),
+      h("div", { class: "view-header" }, [h("div", {}, [h("h1", {}, "Boutique"), h("p", {}, ["Parcourez le catalogue et achetez pour le profil actif. ", h("a", { href: `#${App.raritiesView.LEGEND_ID}`, onClick: (event) => { event.preventDefault(); document.getElementById(App.raritiesView.LEGEND_ID)?.scrollIntoView({ behavior: "smooth" }); } }, "Légende des raretés ↓")])])]),
       filterBar,
       h("div", { id: "shop-results" }),
+      // Outside #shop-results, so filtering never rebuilds it.
+      buildRarityLegend(),
     );
 
     renderResults();

@@ -18,7 +18,7 @@ css/
   base.css                    CSS reset, base element styles, focus-visible, scrollbars
   layout.css                  App shell: header, nav, responsive containers/grids
   components.css               Buttons, cards, badges, star ratings, tables, forms, modal, toggles
-  sheet.css                    Character sheet + dice launcher: parchment panels, brush titles, tabs (phone) / two columns (≥ 1100 px)
+  sheet.css                    Character sheet + dice launcher: parchment panels, brush titles, tabs; sidebar + wider panels at ≥ 1100 px
 
 data/
   items.js                    App.items: the full catalogue array, from the "Système d'argent — JDR Naruto" rules, + category labels.
@@ -31,7 +31,8 @@ data/
 References/                   Spec ("Cahier des charges — Fiche de ninja interactive.md"), paper sheet and rulebook PDFs (not loaded by the app)
 
 js/
-  main.js                     Entry point: boots state, builds header/nav, mounts the profile switcher, registers routes, starts the router
+  main.js                     Entry point: boots state, builds header/nav (order: Fiche, Inventaire, Boutique, Panier, Missions, Profils),
+                              mounts the profile switcher, registers routes, sets "/sheet" as the home page, starts the router
   router.js                   Tiny hash router: registerRoute(pattern, handler), navigate(path), initRouter() -> App.router
   state.js                    In-memory app state singleton + subscribe/notify -> App.state. The ONLY module allowed to call App.storage. Also owns the session-only cart (not persisted)
   storage.js                  localStorage read/write, key naming, schema version + migrations, isStorageWritable() -> App.storage. The ONLY module allowed to touch localStorage
@@ -55,14 +56,17 @@ js/
     element-wheel.js             The paper sheet's element wheel as inline SVG (display only; lit/unlocked natures) -> App.elementWheel
     dice-launcher.js             d10 launcher modal (pool, spontaneous success, trait rerolls, aspects, quality, history) + "Lancer la technique" step -> App.diceLauncher
   views/
-    shop.js                      Route "/shop" — browse + filter + sort the catalogue, quick-buy or add to cart -> App.shopView
+    shop.js                      Route "/shop" — browse + filter + sort the catalogue, quick-buy or add to cart, rarity legend at the bottom -> App.shopView
     item-detail.js               Route "/item/:id" — full item info, buy or add to cart with quantity -> App.itemDetailView
     cart.js                      Route "/cart" — review/adjust the cart, check out for the active profile -> App.cartView
-    rarities.js                  Route "/rarities" — the rarity legend table -> App.raritiesView
+    rarities.js                  buildRarityLegend(): the rarity legend section, appended at the bottom of the shop. The old route
+                                 "/rarities" still exists and opens the shop scrolled to it -> App.raritiesView (loaded before shop.js)
     inventory.js                 Route "/inventory" — active profile's owned items, consume/resell/undo purchase -> App.inventoryView
     missions.js                  Route "/missions" — mission payout calculator, manual adjustment form, GM-only mission journal (CSV export) -> App.missionsView
     profiles.js                  Route "/profiles" — profile CRUD UI + transaction history preview/full history/CSV export, "Fiche" button per card -> App.profilesView
-    sheet.js                     Route "/sheet" — the active profile's character sheet: 7 panels (tabs on phone, two columns on wide screens), floating dice button -> App.sheetView
+    sheet.js                     Route "/sheet" — the active profile's character sheet: 6 panels behind tabs (Ninja, Techniques, Éléments, Aspects,
+                                 Sac, Progression) + a summary (gauges, actions, initiative dialog, purse, PX/PA, dice): sticky sidebar at ≥ 1100 px,
+                                 compact block above the tabs on phones (plus a floating dice button) -> App.sheetView
 ```
 
 This matches the layout requested at project kickoff, with one addition: `js/dom.js`. It
