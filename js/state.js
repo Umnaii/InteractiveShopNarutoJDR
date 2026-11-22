@@ -12,7 +12,8 @@
   "use strict";
   window.App = window.App || {};
 
-  const { loadAppState, saveProfiles, saveActiveProfileId, saveSettings, saveMissionLog, resetAllData, getDefaultAppState } = App.storage;
+  const { loadAppState, saveProfiles, saveActiveProfileId, saveSettings, saveMissionLog, resetAllData, getDefaultAppState, isStorageWritable } =
+    App.storage;
 
   /** @type {{profiles: Array, activeProfileId: string|null, settings: {gmMode: boolean, showHorsCommerce: boolean}, missionLog: Array}} */
   let state = getDefaultAppState();
@@ -136,6 +137,15 @@
     notify();
   }
 
+  /**
+   * Whether changes are actually being saved. False when localStorage is blocked (some
+   * private-browsing modes) or a write failed: the app still works, but only in memory.
+   * @returns {boolean}
+   */
+  function isPersistent() {
+    return isStorageWritable();
+  }
+
   /** @returns {{itemId: string, quantity: number}[]} Current cart contents (session-only). */
   function getCart() {
     return cart;
@@ -201,6 +211,7 @@
     setSettings,
     setMissionLog,
     resetState,
+    isPersistent,
     getCart,
     addToCart,
     setCartQuantity,

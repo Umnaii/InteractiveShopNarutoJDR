@@ -82,5 +82,37 @@
     window.scrollTo(scrollX, scrollY);
   }
 
-  App.dom = { h, clearElement, rerenderKeepingScroll };
+  /**
+   * Like rerenderKeepingScroll, and also puts the keyboard focus (and text cursor) back on
+   * the "same" control after the rebuild. A control is recognized by its `data-focus-key`
+   * attribute, so give one to every input/button that can be focused while the view
+   * re-renders (e.g. the character sheet's fields and +/- buttons).
+   * @param {HTMLElement} container - The subtree being rebuilt.
+   * @param {() => void} render
+   * @returns {void}
+   */
+  function rerenderKeepingFocus(container, render) {
+    const active = document.activeElement;
+    const key = active instanceof HTMLElement && container.contains(active) ? active.dataset.focusKey : null;
+    let selection = null;
+    if (key && typeof active.selectionStart === "number") {
+      selection = [active.selectionStart, active.selectionEnd];
+    }
+
+    rerenderKeepingScroll(render);
+
+    if (!key) return;
+    const target = Array.from(container.querySelectorAll("[data-focus-key]")).find((element) => element.dataset.focusKey === key);
+    if (!target) return;
+    target.focus({ preventScroll: true });
+    if (selection) {
+      try {
+        target.setSelectionRange(selection[0], selection[1]);
+      } catch (error) {
+        // Some input types (number, checkbox...) have no text selection: nothing to restore.
+      }
+    }
+  }
+
+  App.dom = { h, clearElement, rerenderKeepingScroll, rerenderKeepingFocus };
 })();
