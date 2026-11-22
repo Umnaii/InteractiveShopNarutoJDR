@@ -183,7 +183,7 @@ localStorage  <-->  App.storage  <-->  App.state  <-->  App.profiles / App.econo
  * @property {number} rarity        // integer 1..5 (star count); ranged rarities use the lower bound
  * @property {number|{min:number,max:number}|null} price   // Ryo; null = hors-commerce/non vendu
  * @property {string} priceLabel    // raw French price string, exactly as shown to players
- * @property {{quantity:number,price:number}} [bulk] // optional catalogue bulk-pack discount,
+ * @property { {quantity:number,price:number}} [bulk] // optional catalogue bulk-pack discount,
  *   e.g. shuriken: {quantity:5, price:450} instead of 5x100. Applied automatically by
  *   economy.js's getItemTotalPrice() — never multiply price * quantity yourself.
  * @property {"consommable"|"permanent"|"restreint"|"intrigue"} type
@@ -227,24 +227,24 @@ localStorage  <-->  App.storage  <-->  App.state  <-->  App.profiles / App.econo
 /**
  * @typedef {Object} Sheet              // see js/sheet-calc.js createDefaultSheet() for defaults
  * @property {"creation"|"jeu"} mode
- * @property {{surnom, description, joueur, clan, sexe, age: string}} identity  // name & grade = Profile.name / Profile.rank
- * @property {{combat, infiltration, perception, soutien: number}} stats     // 1..5
- * @property {{[stat]: string[5]}} traits                                    // only the first `stats[stat]` lines show
- * @property {{ninjutsu, taijutsu, genjutsu, fuinjutsu, kuchiyose: number}} arts
- * @property {{affinity, second, weak: string}} elementRoles                // element keys or ""
- * @property {{feu, vent, foudre, terre, eau: number}} elements
+ * @property { {surnom, description, joueur, clan, sexe, age: string}} identity  // name & grade = Profile.name / Profile.rank
+ * @property { {combat, infiltration, perception, soutien: number}} stats     // 1..5
+ * @property { {[stat]: string[5]}} traits                                    // only the first `stats[stat]` lines show
+ * @property { {ninjutsu, taijutsu, genjutsu, fuinjutsu, kuchiyose: number}} arts
+ * @property { {affinity, second, weak: string}} elementRoles                // element keys or ""
+ * @property { {feu, vent, foudre, terre, eau: number}} elements
  * @property {string[]} unlockedNatures       // nature keys ("Débloquer (enseignement reçu)")
  * @property {string[2]} kekkeiGenkai          // Kekkei Genkai nature keys or ""; slot 2 locked in creation
  * @property {Technique[]} techniques          // {id, name, art, rank, mastery, element, origin}
- * @property {{[category]: string[2]}} aspects
+ * @property { {[category]: string[2]}} aspects
  * @property {string[]} pendingAspects         // positive-call effects waiting for the next roll/initiative
- * @property {{current, max: number}} vitality, chakra
+ * @property { {current, max: number}} vitality, chakra
  * @property {number} creationChakraPa         // creation PA turned into chakra (1 PA = +2 max)
- * @property {{px, pa: number}} earned         // totals typed by the player
+ * @property { {px, pa: number}} earned         // totals typed by the player
  * @property {Spending[]} spending             // PX/PA ledger, newest first; each entry knows how to undo itself
- * @property {{id, name, stat, dice, successes, legendary}[]} customItems  // equipment added by hand
+ * @property { {id, name, stat, dice, successes, legendary}[]} customItems  // equipment added by hand
  * @property {Roll[]} rolls                    // last 10 dice rolls
- * @property {{total, die, bonus: number|null, piles: number[]}} initiative
+ * @property { {total, die, bonus: number|null, piles: number[]}} initiative
  */
 /**
  * @typedef {Object} InventoryEntry
