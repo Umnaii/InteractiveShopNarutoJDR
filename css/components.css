@@ -441,6 +441,12 @@
   background: var(--color-surface-hover);
 }
 
+/* A card holding a wide table: scrolls sideways inside the card on a phone, never the page. */
+.table-scroll {
+  overflow-x: auto;
+  padding: var(--space-2);
+}
+
 /* --- Forms --- */
 .field {
   display: flex;

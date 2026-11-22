@@ -10,10 +10,10 @@
 
   const { initState, getCart, subscribe } = App.state;
   const { createProfileSwitcher } = App.profileSwitcher;
-  const { registerRoute, initRouter } = App.router;
+  const { registerRoute, setNotFoundPath, initRouter } = App.router;
   const { renderShopView } = App.shopView;
   const { renderItemDetailView } = App.itemDetailView;
-  const { renderRaritiesView } = App.raritiesView;
+  const { LEGEND_ID } = App.raritiesView;
   const { renderInventoryView } = App.inventoryView;
   const { renderMissionsView } = App.missionsView;
   const { renderProfilesView } = App.profilesView;
@@ -21,12 +21,12 @@
   const { renderSheetView } = App.sheetView;
   const { h, clearElement } = App.dom;
 
+  /** Page order: the character sheet first (also the home page, see boot()). */
   const NAV_ITEMS = [
-    { path: "/shop", label: "Boutique" },
     { path: "/sheet", label: "Fiche" },
-    { path: "/cart", label: "Panier" },
-    { path: "/rarities", label: "Raretés" },
     { path: "/inventory", label: "Inventaire" },
+    { path: "/shop", label: "Boutique" },
+    { path: "/cart", label: "Panier" },
     { path: "/missions", label: "Missions" },
     { path: "/profiles", label: "Profils" },
   ];
@@ -85,12 +85,19 @@
     registerRoute("/shop", () => renderShopView(view()));
     registerRoute("/item/:id", (params) => renderItemDetailView(view(), params.id));
     registerRoute("/cart", () => renderCartView(view()));
-    registerRoute("/rarities", () => renderRaritiesView(view()));
+    // Old "Raretés" page: the legend now lives at the bottom of the shop.
+    registerRoute("/rarities", () => {
+      const cleanup = renderShopView(view());
+      document.getElementById(LEGEND_ID)?.scrollIntoView();
+      return cleanup;
+    });
     registerRoute("/inventory", () => renderInventoryView(view()));
     registerRoute("/missions", () => renderMissionsView(view()));
     registerRoute("/profiles", () => renderProfilesView(view()));
     registerRoute("/sheet", () => renderSheetView(view()));
 
+    // Opening the site (no #/... in the address) lands on the character sheet.
+    setNotFoundPath("/sheet");
     initRouter();
   }
 

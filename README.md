@@ -11,6 +11,9 @@ stocké dans le `localStorage` du navigateur.
 
 ## Fonctionnalités
 
+Pages, dans l'ordre de la navigation : **Fiche** (page d'accueil), **Inventaire**,
+**Boutique** (avec la légende des raretés en bas), **Panier**, **Missions**, **Profils**.
+
 - **Profils multiples** : créer, renommer, dupliquer, supprimer des personnages (Genin /
   Chûnin / Jônin), chacun avec son solde de Ryo, son inventaire et son historique de
   transactions. Depuis la page Profils, « Voir tout l'historique » ouvre le journal complet
@@ -25,8 +28,8 @@ stocké dans le `localStorage` du navigateur.
 - **Fiche objet** : détail complet (rareté, prix, conditions d'utilisation, effet chiffré),
   accessible en cliquant un objet ou via une URL du type `#/item/kunai-explosif`, avec achat
   immédiat ou ajout au panier.
-- **Légende des raretés** : le tableau ★ à ★★★★★ du catalogue, avec où trouver l'objet et
-  ce que ça représente.
+- **Légende des raretés** (en bas de la Boutique) : le tableau ★ à ★★★★★ du catalogue, avec
+  où trouver l'objet et ce que ça représente.
 - **Inventaire** : objets possédés par profil actif, groupés par catégorie, avec
   consommation, revente à 50 % du prix d'achat, ou **annulation d'un achat récent** (remboursement
   intégral, pour corriger un achat par erreur), et la valeur totale de l'inventaire.
@@ -48,7 +51,10 @@ stocké dans le `localStorage` du navigateur.
   (caractéristiques, arts, éléments, énergie vitale et chakra max, maîtrise, nouvelles
   techniques) ne passent plus que par les PX / PA : chaque valeur affiche son prix, grisé tant
   que le solde ne suffit pas. Un parchemin de technique acheté au shop apprend une technique
-  sans PA. Les joueurs saisissent eux-mêmes les PX / PA gagnés annoncés par le conteur. Sur téléphone, une colonne avec 7 onglets ; sur PC, la fiche entière en deux colonnes.
+  sans PA. Les joueurs saisissent eux-mêmes les PX / PA gagnés annoncés par le conteur. Sur téléphone,
+  6 onglets (Ninja, Techniques, Éléments, Aspects, Sac, Progression) et un résumé toujours
+  visible : énergie vitale, chakra, actions du tour, initiative, bourse, PX / PA et bouton de
+  dés. Sur PC, ce résumé est une colonne fixe à gauche ; sur téléphone, un bloc compact au-dessus des onglets.
 - **Export / import de profil** : téléchargez un profil (fiche de personnage comprise) en
   fichier `.json` depuis la page Profils ou la Fiche, et rechargez-le plus tard sur un autre
   appareil ou navigateur (voir ci-dessous).

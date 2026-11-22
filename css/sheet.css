@@ -1,7 +1,8 @@
 /* Character sheet ("Fiche", js/views/sheet.js) and its dice launcher (js/components/dice-launcher.js).
    Paper-sheet identity: parchment panels, orange brush strokes, red spirals, brush-like titles.
    Phone: one column, one panel at a time behind tabs, 44 px touch targets.
-   Wide screens (≥ 1100 px): tabs hidden, every panel shown in two columns like the paper sheet. */
+   Wide screens (≥ 1100 px): a sticky sidebar (gauges, purse, PX/PA, dice) left of the tabs,
+   one large panel at a time with wider internal grids. */
 
 /* --- Page frame --- */
 .app-main.app-main--sheet {
@@ -313,7 +314,7 @@ button.budget-chip:hover {
 /* --- Tabs (phone / tablet only) --- */
 .sheet-tabs {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: var(--space-1);
   padding: var(--space-1);
   background: var(--color-cloth);
@@ -344,20 +345,72 @@ button.budget-chip:hover {
 }
 
 /* --- Layout and panels --- */
-.sheet-layout {
+.sheet-body {
   display: block;
   min-width: 0;
 }
 
-.sheet-col {
+.sheet-main {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   min-width: 0;
 }
 
-.sheet-col + .sheet-col {
-  margin-top: var(--space-4);
+/* Summary of the ninja's live state: a compact block above the tabs on phones,
+   a sticky left column on wide screens (see the media query at the end). */
+.sheet-side {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  min-width: 0;
+}
+
+/* Phones: the two gauges side by side, everything else full width. */
+.sheet-side > :not(.side-card--gauge) {
+  grid-column: 1 / -1;
+}
+
+.sheet-side .side-card--gauge {
+  min-width: 0;
+  padding: var(--space-2);
+}
+
+.sheet-side .side-card--gauge .gauge__label {
+  font-size: 0.9rem;
+}
+
+.sheet-side .side-card--gauge .gauge__numbers strong {
+  font-size: 1.2rem;
+}
+
+.sheet-side .side-card--gauge .side-card__row {
+  justify-content: flex-start;
+  gap: var(--space-1) var(--space-2);
+}
+
+/* Phones keep the floating dice button instead. */
+.sheet-side .side-dice {
+  display: none;
+}
+
+.creation-chakra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 2px dashed var(--color-accent);
+  border-radius: 6px;
+}
+
+.side-card__phases {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
 }
 
 .sheet-panel {
@@ -632,45 +685,7 @@ button.budget-chip:hover {
   flex: 1;
 }
 
-/* --- Combat panel --- */
-.combat-block {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  background: var(--color-surface);
-  border: 2px solid var(--color-ink);
-  border-radius: 6px;
-}
-
-.combat-block__title {
-  margin: 0;
-  color: var(--color-seal);
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: 1.1rem;
-}
-
-.combat-block__controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.combat-block__max {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
-.combat-block__reminder {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-}
-
+/* --- Gauges (sidebar) and initiative (dialog) --- */
 .gauge__head {
   display: flex;
   align-items: baseline;
@@ -1775,25 +1790,238 @@ button.budget-chip:hover {
   font-variant-numeric: tabular-nums;
 }
 
-/* --- Wide screens: the whole sheet at once, in two columns like the paper sheet --- */
-@media (min-width: 1100px) {
-  .sheet-tabs {
-    display: none;
-  }
+/* --- Elements panel: one column on phones, wheel | settings side by side when there's room --- */
+.elements-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
 
-  .sheet-layout {
+.elements-layout__wheel,
+.elements-layout__settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* Progression: purchase lists in columns when there's room. */
+.purchase-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+  gap: var(--space-2) var(--space-5);
+  align-items: start;
+}
+
+/* --- Sidebar content --- */
+.side-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 2px solid var(--color-ink);
+  border-radius: 6px;
+}
+
+.side-card__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.side-card__actions {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.side-card__actions strong {
+  color: var(--color-seal);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.15rem;
+}
+
+.side-card__line {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.side-card__pending {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.side-card--split {
+  flex-direction: row;
+  padding: 0;
+  overflow: hidden;
+}
+
+.side-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.side-stat + .side-stat {
+  border-left: 1.5px dashed var(--color-border-strong);
+}
+
+.side-stat:hover {
+  background: var(--color-surface-hover);
+}
+
+.side-stat__value {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.side-stat__value--ryo {
+  color: var(--color-accent-ink);
+}
+
+.side-stat__label {
+  color: var(--color-text-faint);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.side-dice {
+  min-height: 3rem;
+  font-size: 1rem;
+}
+
+.side-dice .dice-fab__icon {
+  width: 2rem;
+  height: 2rem;
+  font-size: 0.65rem;
+}
+
+/* --- Wide screens: sticky sidebar on the left, tabs + one large panel on the right --- */
+@media (min-width: 1100px) {
+  .sheet-body {
     display: grid;
-    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    grid-template-columns: 17.5rem minmax(0, 1fr);
     gap: var(--space-4);
     align-items: start;
   }
 
-  .sheet-col + .sheet-col {
-    margin-top: 0;
+  .sheet-side {
+    position: sticky;
+    top: 7.5rem; /* below the sticky app header */
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: 0;
+    max-height: calc(100vh - 8.5rem);
+    overflow-y: auto;
+    padding: var(--space-3);
+    background: var(--color-parchment);
+    border: 2px solid var(--color-ink);
+    border-radius: 8px;
+    box-shadow: var(--shadow-ink);
+  }
+
+  .sheet-side .side-card--gauge {
+    padding: var(--space-3);
+  }
+
+  /* The sidebar has its own dice button. */
+  .dice-fab {
+    display: none;
+  }
+
+  .sheet-side .side-dice {
+    display: inline-flex;
+  }
+
+  .sheet-tabs {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    position: sticky;
+    top: 7.5rem;
+    z-index: 5;
+  }
+
+  .sheet-tabs__tab {
+    font-size: 0.95rem;
   }
 
   .sheet-panel {
-    display: flex;
+    min-height: 32rem;
+    padding: var(--space-5) var(--space-6) var(--space-6);
+  }
+
+  .elements-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: var(--space-6);
+    align-items: start;
+  }
+
+  .elements-layout__wheel {
+    position: sticky;
+    top: 12rem;
+  }
+
+  .wheel-frame {
+    max-width: none;
+  }
+
+  .sheet-subhead--first {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+
+  .identity-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .art-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .aspect-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  /* Technique: fields on the first line, mastery circles and buttons side by side below. */
+  .technique {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-2) var(--space-5);
+  }
+
+  .technique__main {
+    grid-column: 1 / -1;
+  }
+
+  .technique__actions {
+    justify-content: flex-end;
   }
 }
 
@@ -1907,10 +2135,10 @@ button.budget-chip:hover {
 
 @media (max-width: 560px) {
   .sheet-tabs {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  /* "Progression" / "Techniques" must fit a quarter of a 320 px screen without breaking. */
+  /* "Progression" / "Techniques" must fit a third of a 320 px screen without breaking. */
   .sheet-tabs__tab {
     padding: var(--space-1) 2px;
     font-size: clamp(0.66rem, 3.1vw, 0.8rem);
