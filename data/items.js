@@ -20,6 +20,9 @@
  * @property {"consommable"|"permanent"|"restreint"|"intrigue"} type
  * @property {string} usage - French conditions of use.
  * @property {string} effect - French mechanical effect text.
+ * @property {{stat: string, dice: number, successes: number, legendary: boolean}} [bonus] - Structured
+ *   version of `effect` for bonus items (sections A..D and G), read by the character sheet's dice
+ *   launcher. `stat` is a key of App.ninjaRules.STATS. Absent on items with no roll bonus.
  * @property {boolean} purchasable - False for items that can't be bought (legendary weapons).
  * @property {boolean} gmOnly - True for items only the GM should see.
  */
@@ -41,6 +44,9 @@
 
   const CAP_USAGE = "Bonus plafonné selon le rang (Genin +1 dé, Chûnin +2 dés, Jônin +3 dés et +1 succès).";
 
+  /** Bonus sections A..D -> the characteristic they boost (keys of App.ninjaRules.STATS). */
+  const CATEGORY_STATS = { A: "combat", B: "infiltration", C: "perception", D: "soutien" };
+
   /**
    * Build a bonus-equipment entry (sections A..D): permanent, purchasable, rank-capped.
    * @param {string} id
@@ -50,9 +56,11 @@
    * @param {number} price
    * @param {string} priceLabel
    * @param {string} effect
+   * @param {number} dice - Bonus dice for the category's characteristic (read by the sheet's dice launcher).
+   * @param {number} successes - Bonus automatic successes.
    * @returns {Item}
    */
-  function equipment(id, name, category, rarity, price, priceLabel, effect) {
+  function equipment(id, name, category, rarity, price, priceLabel, effect, dice, successes) {
     return {
       id,
       name,
@@ -63,6 +71,7 @@
       type: "permanent",
       usage: `Équipement, utilisable quand la situation s'y prête. ${CAP_USAGE}`,
       effect,
+      bonus: { stat: CATEGORY_STATS[category], dice, successes, legendary: false },
       purchasable: true,
       gmOnly: false,
     };
@@ -72,53 +81,53 @@
   const ITEMS = [
     // A. Combat
     equipment("wakizashi-acier", "Wakizashi d'acier", "A", 2, 15000, "15 000",
-      "+1 dé en Combat avec la lame."),
+      "+1 dé en Combat avec la lame.", 1, 0),
     equipment("gantelets-renforces", "Gantelets renforcés", "A", 2, 25000, "25 000",
-      "+1 dé en Combat à mains nues."),
+      "+1 dé en Combat à mains nues.", 1, 0),
     equipment("katana-forgeron-renomme", "Katana de forgeron renommé", "A", 3, 90000, "90 000",
-      "+2 dés en Combat avec la lame."),
+      "+2 dés en Combat avec la lame.", 2, 0),
     equipment("plastron-chakra-acier", "Plastron en chakra-acier", "A", 3, 140000, "140 000",
-      "+2 dés en Combat."),
+      "+2 dés en Combat.", 2, 0),
     equipment("lames-conductrices-chakra", "Lames conductrices de chakra", "A", 4, 350000, "350 000",
-      "+2 dés et +1 succès en Combat ; le chakra prolonge la lame, avec n'importe quel art ninja."),
+      "+2 dés et +1 succès en Combat ; le chakra prolonge la lame, avec n'importe quel art ninja.", 2, 1),
     equipment("sabre-maitre-armes", "Sabre de maître d'armes", "A", 4, 500000, "500 000",
-      "+2 dés et +1 succès en Combat avec la lame."),
+      "+2 dés et +1 succès en Combat avec la lame.", 2, 1),
 
     // B. Infiltration
     equipment("tenue-camouflage", "Tenue de camouflage", "B", 2, 10000, "10 000",
-      "+1 dé en Infiltration en terrain naturel."),
+      "+1 dé en Infiltration en terrain naturel.", 1, 0),
     equipment("malle-deguisements", "Malle de déguisements", "B", 2, 18000, "18 000",
-      "+1 dé en Infiltration pour se faire passer pour quelqu'un d'autre et baratiner."),
+      "+1 dé en Infiltration pour se faire passer pour quelqu'un d'autre et baratiner.", 1, 0),
     equipment("manteau-brume", "Manteau de brume", "B", 3, 70000, "70 000",
-      "+2 dés en Infiltration de nuit ou dans le brouillard."),
+      "+2 dés en Infiltration de nuit ou dans le brouillard.", 2, 0),
     equipment("semelles-silencieuses", "Semelles silencieuses", "B", 3, 120000, "120 000",
-      "+2 dés en Infiltration pour se déplacer sans bruit."),
+      "+2 dés en Infiltration pour se déplacer sans bruit.", 2, 0),
     equipment("manteau-ombre", "Manteau d'ombre", "B", 4, 280000, "280 000",
-      "+2 dés et +1 succès en Infiltration."),
+      "+2 dés et +1 succès en Infiltration.", 2, 1),
 
     // C. Perception
     equipment("jumelles-campagne", "Jumelles de campagne", "C", 2, 12000, "12 000",
-      "+1 dé en Perception pour observer à distance."),
+      "+1 dé en Perception pour observer à distance.", 1, 0),
     equipment("kit-pistage", "Kit de pistage", "C", 2, 22000, "22 000",
-      "+1 dé en Perception pour suivre des traces."),
+      "+1 dé en Perception pour suivre des traces.", 1, 0),
     equipment("lentilles-reperage", "Lentilles de repérage", "C", 3, 80000, "80 000",
-      "+2 dés en Perception pour repérer à distance."),
+      "+2 dés en Perception pour repérer à distance.", 2, 0),
     equipment("detecteur-sceaux", "Détecteur de sceaux", "C", 3, 130000, "130 000",
-      "+2 dés en Perception pour déceler pièges et sceaux."),
+      "+2 dés en Perception pour déceler pièges et sceaux.", 2, 0),
     equipment("lorgnon-chasseur-primes", "Lorgnon de chasseur de primes", "C", 4, 300000, "300 000",
-      "+2 dés et +1 succès en Perception pour identifier une cible."),
+      "+2 dés et +1 succès en Perception pour identifier une cible.", 2, 1),
 
     // D. Soutien
     equipment("trousse-soin-campagne", "Trousse de soin de campagne", "D", 2, 15000, "15 000",
-      "+1 dé en Soutien pour les premiers soins."),
+      "+1 dé en Soutien pour les premiers soins.", 1, 0),
     equipment("sacoche-atelier", "Sacoche d'atelier", "D", 2, 20000, "20 000",
-      "+1 dé en Soutien pour réparer et préparer le matériel."),
+      "+1 dé en Soutien pour réparer et préparer le matériel.", 1, 0),
     equipment("mallette-soins-complete", "Mallette de soins complète", "D", 3, 85000, "85 000",
-      "+2 dés en Soutien pour soigner une blessure."),
+      "+2 dés en Soutien pour soigner une blessure.", 2, 0),
     equipment("oiseau-messager-dresse", "Oiseau messager dressé", "D", 3, 110000, "110 000",
-      "+2 dés en Soutien pour coordonner l'équipe à distance."),
+      "+2 dés en Soutien pour coordonner l'équipe à distance.", 2, 0),
     equipment("mallette-medecin-ninja-elite", "Mallette de médecin-ninja d'élite", "D", 4, 260000, "260 000",
-      "+2 dés et +1 succès en Soutien pour les soins."),
+      "+2 dés et +1 succès en Soutien pour les soins.", 2, 1),
 
     // E. Armes de jet (aucun bonus, munitions comptées)
     {
@@ -233,6 +242,7 @@
       type: "intrigue",
       usage: "Ne s'achète pas : s'obtient par le scénario (butin, don d'un village, vol). Un PJ n'en porte qu'une.",
       effect: `+3 dés et +2 succès en ${stat}. Remplace le plafond du rang : aucun autre objet ne s'ajoute en ${stat}.`,
+      bonus: { stat: stat.toLowerCase(), dice: 3, successes: 2, legendary: true },
       purchasable: false,
       gmOnly: false,
     })),

@@ -36,8 +36,22 @@ stocké dans le `localStorage` du navigateur.
   d'équipe en option), crédit en un clic vers un ou plusieurs profils, un formulaire
   d'ajustement manuel (décision du conteur), et un **journal des missions** (réservé au
   conteur, non visible des joueurs) téléchargeable en CSV.
-- **Export / import de profil** : téléchargez un profil en fichier `.json` depuis la page
-  Profils, et rechargez-le plus tard sur un autre appareil ou navigateur (voir ci-dessous).
+- **Fiche de ninja** (onglet « Fiche ») : la fiche papier `References/ShinobiFichePerso.pdf`
+  rendue interactive pour le profil actif, avec les règles du livre (création p. 36-58,
+  système de jeu p. 105-115). Mode **création** avec les budgets du grade (points restants,
+  plafonds, avertissements non bloquants) puis mode **jeu** : jauges d'énergie vitale et de
+  chakra, lanceur de d10 (réserve, réussite spontanée, relances par trait, succès
+  automatiques, qualité, 10 derniers jets), lancement de technique avec dépense de chakra,
+  appels d'aspects, initiative et répartition des jetons, roue des éléments avec natures
+  combinées et Kekkei Genkai, PX / PA avec achats et annulation de la dernière dépense.
+  La bourse et l'équipement sont ceux du shop. Une fois la création validée, les évolutions
+  (caractéristiques, arts, éléments, énergie vitale et chakra max, maîtrise, nouvelles
+  techniques) ne passent plus que par les PX / PA : chaque valeur affiche son prix, grisé tant
+  que le solde ne suffit pas. Un parchemin de technique acheté au shop apprend une technique
+  sans PA. Les joueurs saisissent eux-mêmes les PX / PA gagnés annoncés par le conteur. Sur téléphone, une colonne avec 7 onglets ; sur PC, la fiche entière en deux colonnes.
+- **Export / import de profil** : téléchargez un profil (fiche de personnage comprise) en
+  fichier `.json` depuis la page Profils ou la Fiche, et rechargez-le plus tard sur un autre
+  appareil ou navigateur (voir ci-dessous).
 
 ## Lancer l'application en local
 
@@ -83,8 +97,12 @@ entre appareils. Pour jouer le même personnage ailleurs :
    s'il faut **remplacer** la version locale (écrase solde/inventaire/historique par la
    version importée) ou **importer comme copie** (crée un second profil distinct).
 
-Le fichier exporté contient tout le profil (solde, inventaire, historique) mais rien
-d'autre — pas les autres profils, pas les réglages d'affichage.
+Le fichier exporté contient tout le profil (solde, inventaire, historique, fiche de
+personnage) mais rien d'autre — pas les autres profils, pas les réglages d'affichage. Les
+boutons « Exporter » / « Importer » existent aussi en haut de la Fiche.
+
+Si le navigateur bloque le stockage (certaines navigations privées), l'application
+fonctionne quand même en mémoire et la Fiche affiche un avertissement : pensez à exporter.
 
 ### Réinitialiser les données
 

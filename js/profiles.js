@@ -3,7 +3,7 @@
  * profile as a portable JSON file (for moving a character between devices).
  * Mutates state via state.js only.
  * Plain script: attaches its API to the shared App namespace as App.profiles.
- * Depends on App.state, App.format (must be loaded first).
+ * Depends on App.state, App.format, App.sheetCalc (must be loaded first).
  *
  * @typedef {Object} InventoryEntry
  * @property {string} itemId
@@ -27,6 +27,8 @@
  * @property {number} balance
  * @property {InventoryEntry[]} inventory
  * @property {Transaction[]} history
+ * @property {object} [sheet] - The character sheet (see js/sheet-calc.js). Profiles saved
+ *   before the sheet existed have none; App.sheetCalc.normalizeSheet() supplies a fresh one.
  */
 
 (function () {
@@ -35,6 +37,7 @@
 
   const { getProfiles, setProfiles, getActiveProfileId, setActiveProfileId } = App.state;
   const { getRankOptions } = App.format;
+  const { createDefaultSheet, normalizeSheet } = App.sheetCalc;
 
   /** Schema version for the standalone profile export file format (independent of the localStorage schema). */
   const PROFILE_EXPORT_VERSION = 1;
@@ -80,6 +83,7 @@
       balance: 0,
       inventory: [],
       history: [],
+      sheet: createDefaultSheet(),
     };
 
     setProfiles([...getProfiles(), profile]);
@@ -244,10 +248,16 @@
             kind: validKinds.includes(entry.kind) ? entry.kind : "adjustment",
             amount: Number.isFinite(entry.amount) ? Math.round(entry.amount) : 0,
             reason: typeof entry.reason === "string" ? entry.reason : "",
+            // Kept so "Annuler l'achat" still finds the purchase after an export/import.
+            ...(typeof entry.itemId === "string" ? { itemId: entry.itemId } : {}),
+            ...(Number.isFinite(entry.quantity) ? { quantity: Math.floor(entry.quantity) } : {}),
           }))
       : [];
 
-    return { ok: true, profile: { id, name, rank, balance, inventory, history } };
+    // The character sheet goes through the same sanitizing as a stored one.
+    const sheet = normalizeSheet(raw.sheet, rank);
+
+    return { ok: true, profile: { id, name, rank, balance, inventory, history, sheet } };
   }
 
   /**

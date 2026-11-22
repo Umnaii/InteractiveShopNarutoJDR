@@ -70,6 +70,16 @@
   --motif-spiral-header: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='24 24 54 54'%3E%3Cpath d='M50 50a2 2 0 0 1 4 0a4 4 0 0 1-8 0a6 6 0 0 1 12 0a8 8 0 0 1-16 0a10 10 0 0 1 20 0a12 12 0 0 1-24 0a14 14 0 0 1 28 0a16 16 0 0 1-32 0a18 18 0 0 1 36 0a20 20 0 0 1-40 0a22 22 0 0 1 44 0' fill='none' stroke='%23f28a1a' stroke-opacity='0.22' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
   --motif-spiral-page: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='24 24 54 54'%3E%3Cpath d='M50 50a2 2 0 0 1 4 0a4 4 0 0 1-8 0a6 6 0 0 1 12 0a8 8 0 0 1-16 0a10 10 0 0 1 20 0a12 12 0 0 1-24 0a14 14 0 0 1 28 0a16 16 0 0 1-32 0a18 18 0 0 1 36 0a20 20 0 0 1-40 0a22 22 0 0 1 44 0' fill='none' stroke='%23f28a1a' stroke-opacity='0.09' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E");
 
+  /* Character sheet (css/sheet.css): the paper sheet's red spiral before each title, and its
+     orange brush strokes behind titles and technique lines. */
+  --motif-spiral-red: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='24 24 54 54'%3E%3Cpath d='M50 50a2 2 0 0 1 4 0a4 4 0 0 1-8 0a6 6 0 0 1 12 0a8 8 0 0 1-16 0a10 10 0 0 1 20 0a12 12 0 0 1-24 0a14 14 0 0 1 28 0a16 16 0 0 1-32 0a18 18 0 0 1 36 0a20 20 0 0 1-40 0a22 22 0 0 1 44 0' fill='none' stroke='%23c8322b' stroke-width='4.2' stroke-linecap='round'/%3E%3C/svg%3E");
+  --brush-orange: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 40' preserveAspectRatio='none'%3E%3Cpath d='M3 23C38 9 92 11 142 13S262 6 332 10S393 14 398 19C381 31 302 34 222 31S82 37 9 31Z' fill='%23f28a1a' fill-opacity='0.5'/%3E%3Cpath d='M30 17C110 12 210 15 300 13S380 15 390 17' fill='none' stroke='%23f28a1a' stroke-opacity='0.35' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
+  --brush-orange-soft: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 40' preserveAspectRatio='none'%3E%3Cpath d='M3 23C38 9 92 11 142 13S262 6 332 10S393 14 398 19C381 31 302 34 222 31S82 37 9 31Z' fill='%23f28a1a' fill-opacity='0.16'/%3E%3C/svg%3E");
+  --color-parchment: #f8ecd2;
+  --color-parchment-edge: #e8d3a8;
+  --color-die-crit: #e9a100;
+  --color-die-fail: #9aa1ad;
+
   /* --font-display: heavy "episode title" face for page/section titles (single weight, 400).
      --font-heading: rounded, friendly face for sub-titles, item names, buttons, nav, amounts. */
   --font-display: "Dela Gothic One", "Arial Black", "Segoe UI Black", Impact, sans-serif;

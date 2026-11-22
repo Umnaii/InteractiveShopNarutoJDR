@@ -18,21 +18,32 @@ css/
   base.css                    CSS reset, base element styles, focus-visible, scrollbars
   layout.css                  App shell: header, nav, responsive containers/grids
   components.css               Buttons, cards, badges, star ratings, tables, forms, modal, toggles
+  sheet.css                    Character sheet + dice launcher: parchment panels, brush titles, tabs (phone) / two columns (≥ 1100 px)
 
 data/
-  items.js                    App.items: the full catalogue array, from the "Système d'argent — JDR Naruto" rules, + category labels
+  items.js                    App.items: the full catalogue array, from the "Système d'argent — JDR Naruto" rules, + category labels.
+                              Bonus items carry a structured `bonus` {stat, dice, successes, legendary} read by the sheet's dice launcher
   rarities.js                 App.rarities: the 5-tier rarity legend, + closing note
   missions.js                 App.missions: mission ranks (D..S, plus a "Libre" free-form rank), village cut / party size / leader multiplier constants
+  ninja-rules.js              App.ninjaRules: character sheet rules from the rulebook (References/ShinobiNarutoJdr.pdf): stats, arts,
+                              grade budgets, elements + wheel positions, natures, technique ranks/mastery, aspects, quality table, PX/PA costs
+
+References/                   Spec ("Cahier des charges — Fiche de ninja interactive.md"), paper sheet and rulebook PDFs (not loaded by the app)
 
 js/
   main.js                     Entry point: boots state, builds header/nav, mounts the profile switcher, registers routes, starts the router
   router.js                   Tiny hash router: registerRoute(pattern, handler), navigate(path), initRouter() -> App.router
   state.js                    In-memory app state singleton + subscribe/notify -> App.state. The ONLY module allowed to call App.storage. Also owns the session-only cart (not persisted)
-  storage.js                  localStorage read/write, key naming, schema version + migrations -> App.storage. The ONLY module allowed to touch localStorage
-  profiles.js                 Profile CRUD (create/rename/duplicate/delete/activate) + export/import as a portable JSON file -> App.profiles. Mutates state through App.state
+  storage.js                  localStorage read/write, key naming, schema version + migrations, isStorageWritable() -> App.storage. The ONLY module allowed to touch localStorage
+  profiles.js                 Profile CRUD (create/rename/duplicate/delete/activate) + export/import as a portable JSON file (sheet included) -> App.profiles. Mutates state through App.state
   economy.js                  ALL Ryo math: purchase, cart checkout, undo-purchase, resale, consume, manual adjustment, mission payout breakdown/crediting + GM mission journal -> App.economy
+  sheet-calc.js               Pure character-sheet maths: default sheet, normalizeSheet() (sanitizes stored/imported sheets), creation budgets,
+                              PX/PA costs, dice/successes/quality, natures' prerequisites, equipment caps, initiative piles -> App.sheetCalc
+  sheet.js                    ALL character-sheet mutations (stats, arts, elements, techniques, aspects, gauges, PX/PA ledger + undo, natures,
+                              hand-added items, roll history, initiative) -> App.sheet. The sheet's equivalent of economy.js
   format.js                   Pure formatting helpers: Ryo strings, star glyphs, French labels, dates, CSV field escaping, profile initials (seals) -> App.format
-  dom.js                      Tiny `h(tag, attrs, children)` element builder + clearElement() + rerenderKeepingScroll() (views wrap their state-change re-render in it so buying/consuming doesn't jump to the top) -> App.dom, shared by components/views
+  dom.js                      Tiny `h(tag, attrs, children)` element builder + clearElement() + rerenderKeepingScroll() (views wrap their state-change re-render in it so buying/consuming doesn't jump to the top)
+                              + rerenderKeepingFocus() (same, and puts focus/caret back on the control with the same `data-focus-key`) -> App.dom, shared by components/views
   components/
     star-rating.js               Renders a rarity integer as colored ★/☆ glyphs -> App.starRating
     item-card.js                 Shop grid tile: name links to detail view, quick-buy + add-to-cart buttons -> App.itemCard
@@ -40,6 +51,9 @@ js/
     poof.js                      "Poof" smoke-burst effect played where a purchase is confirmed (playPoof(rect, label)) -> App.poof
     profile-switcher.js          Header profile switcher: ninja ID card button + unrolling scroll listbox, substitution animation on switch, rolling balance digits. Mounted once, patched via update() -> App.profileSwitcher
     filters.js                   Shop filter bar: category/rarity/type/search/sort controls -> App.filters
+    profile-transfer.js          Shared profile actions: download as .json, import (with replace/duplicate dialog), create dialog, delete confirmation -> App.profileTransfer
+    element-wheel.js             The paper sheet's element wheel as inline SVG (display only; lit/unlocked natures) -> App.elementWheel
+    dice-launcher.js             d10 launcher modal (pool, spontaneous success, trait rerolls, aspects, quality, history) + "Lancer la technique" step -> App.diceLauncher
   views/
     shop.js                      Route "/shop" — browse + filter + sort the catalogue, quick-buy or add to cart -> App.shopView
     item-detail.js               Route "/item/:id" — full item info, buy or add to cart with quantity -> App.itemDetailView
@@ -47,7 +61,8 @@ js/
     rarities.js                  Route "/rarities" — the rarity legend table -> App.raritiesView
     inventory.js                 Route "/inventory" — active profile's owned items, consume/resell/undo purchase -> App.inventoryView
     missions.js                  Route "/missions" — mission payout calculator, manual adjustment form, GM-only mission journal (CSV export) -> App.missionsView
-    profiles.js                  Route "/profiles" — profile CRUD UI + transaction history preview/full history/CSV export -> App.profilesView
+    profiles.js                  Route "/profiles" — profile CRUD UI + transaction history preview/full history/CSV export, "Fiche" button per card -> App.profilesView
+    sheet.js                     Route "/sheet" — the active profile's character sheet: 7 panels (tabs on phone, two columns on wide screens), floating dice button -> App.sheetView
 ```
 
 This matches the layout requested at project kickoff, with one addition: `js/dom.js`. It
@@ -91,19 +106,24 @@ already run — i.e. its `<script>` tag must appear earlier in `index.html`. The
 chain, in the order the scripts are loaded:
 
 ```
-data/items.js, data/rarities.js, data/missions.js   (no dependencies)
+data/items.js, data/rarities.js, data/missions.js, data/ninja-rules.js   (no dependencies)
   -> js/dom.js                                        (no dependencies)
   -> js/format.js                                      (needs App.items)
   -> js/storage.js                                     (no dependencies)
   -> js/state.js                                        (needs App.storage)
-  -> js/profiles.js                                      (needs App.state)
+  -> js/sheet-calc.js                                    (needs App.ninjaRules, App.items)
+  -> js/profiles.js                                      (needs App.state, App.format, App.sheetCalc)
   -> js/economy.js                                        (needs App.items, App.missions, App.state, App.profiles)
+  -> js/sheet.js                                          (needs App.ninjaRules, App.sheetCalc, App.state, App.profiles)
   -> js/components/star-rating.js                          (needs App.dom, App.format)
   -> js/components/item-card.js                             (needs App.dom, App.starRating, App.format)
   -> js/components/modal.js                                 (needs App.dom)
   -> js/components/poof.js                                  (needs App.dom)
   -> js/components/profile-switcher.js                      (needs App.dom, App.state, App.profiles, App.format, App.poof)
   -> js/components/filters.js                               (needs App.dom, App.items, App.format)
+  -> js/components/profile-transfer.js                      (needs App.dom, App.modal, App.profiles, App.format)
+  -> js/components/element-wheel.js                         (needs App.ninjaRules, App.sheetCalc)
+  -> js/components/dice-launcher.js                         (needs App.ninjaRules, App.sheetCalc, App.sheet, App.profiles, App.dom, App.modal, App.format)
   -> js/views/*.js                                            (each needs whichever of the above it reads — see its header comment; js/views/cart.js needs App.state, App.economy, App.format, App.dom, App.poof)
   -> js/router.js                                              (no dependencies)
   -> js/main.js                                                 (needs everything; boots the app on DOMContentLoaded)
@@ -201,6 +221,30 @@ localStorage  <-->  App.storage  <-->  App.state  <-->  App.profiles / App.econo
  * @property {number} balance           // current Ryo
  * @property {InventoryEntry[]} inventory
  * @property {Transaction[]} history    // newest first
+ * @property {Sheet} [sheet]            // character sheet; absent on profiles saved before it existed
+ *                                       // (normalizeSheet() then supplies a fresh creation-mode sheet)
+ */
+/**
+ * @typedef {Object} Sheet              // see js/sheet-calc.js createDefaultSheet() for defaults
+ * @property {"creation"|"jeu"} mode
+ * @property {{surnom, description, joueur, clan, sexe, age: string}} identity  // name & grade = Profile.name / Profile.rank
+ * @property {{combat, infiltration, perception, soutien: number}} stats     // 1..5
+ * @property {{[stat]: string[5]}} traits                                    // only the first `stats[stat]` lines show
+ * @property {{ninjutsu, taijutsu, genjutsu, fuinjutsu, kuchiyose: number}} arts
+ * @property {{affinity, second, weak: string}} elementRoles                // element keys or ""
+ * @property {{feu, vent, foudre, terre, eau: number}} elements
+ * @property {string[]} unlockedNatures       // nature keys ("Débloquer (enseignement reçu)")
+ * @property {string[2]} kekkeiGenkai          // Kekkei Genkai nature keys or ""; slot 2 locked in creation
+ * @property {Technique[]} techniques          // {id, name, art, rank, mastery, element, origin}
+ * @property {{[category]: string[2]}} aspects
+ * @property {string[]} pendingAspects         // positive-call effects waiting for the next roll/initiative
+ * @property {{current, max: number}} vitality, chakra
+ * @property {number} creationChakraPa         // creation PA turned into chakra (1 PA = +2 max)
+ * @property {{px, pa: number}} earned         // totals typed by the player
+ * @property {Spending[]} spending             // PX/PA ledger, newest first; each entry knows how to undo itself
+ * @property {{id, name, stat, dice, successes, legendary}[]} customItems  // equipment added by hand
+ * @property {Roll[]} rolls                    // last 10 dice rolls
+ * @property {{total, die, bonus: number|null, piles: number[]}} initiative
  */
 /**
  * @typedef {Object} InventoryEntry
@@ -312,14 +356,46 @@ shape of an exported file:
   copy with the imported one, keeping the same id) or **duplicate** (import as a new profile
   with a freshly generated id), then re-calls `importProfile` with that explicit strategy.
 
+## 6b. Character sheet ("Fiche")
+
+Spec: `References/Cahier des charges — Fiche de ninja interactive.md`. **One sheet per profile**
+(`Profile.sheet`): the shop already keeps one purse and one inventory per profile, so the sheet's
+"Bourse" and "Sac" are simply the active profile's `balance` and `inventory` — a shop purchase
+shows up on the sheet immediately, with no extra storage key. Creating, duplicating, deleting,
+exporting and importing a sheet are the existing profile operations.
+
+- **Rules as data** (`data/ninja-rules.js`), **maths as pure functions** (`js/sheet-calc.js`),
+  **mutations** (`js/sheet.js`, via `App.state.setProfiles`), **UI** (`js/views/sheet.js` +
+  `dice-launcher.js` + `element-wheel.js`) — the same split as items / economy / views.
+- **Reading a sheet** always goes through `App.sheet.getSheet(profile)` (= `normalizeSheet`),
+  which sanitizes it like `storage.js` sanitizes everything else. Mutations get a fresh copy,
+  change it, and commit; `normalizeSheet` is idempotent, so export → import is lossless.
+- **Creation mode**: budgets (`creationBudget`) are derived from the sheet, not stored.
+  Grade-driven values (vitality max, chakra max, element values) are recomputed by
+  `applyCreationDerivations` *plus* whatever the PX/PA ledger bought, so switching back to
+  creation never loses a purchase. Play-mode purchases are excluded from creation budgets.
+- **Play mode**: every PX/PA purchase is a ledger entry with an `undo` descriptor
+  (`{type: "stat"|"art"|"element"|"vitalityMax"|"chakraMax"|"techniqueNew"|"mastery", ...}`),
+  which is how "Annuler la dernière dépense" puts things back. Once creation is validated,
+  characteristics, arts, elements, énergie vitale max, chakra max, mastery and new techniques
+  have **no free edit**: `App.sheet` refuses them and the view shows each value with its price
+  (`paidValue`), disabled until enough PX/PA are available. The only other way in is a shop
+  technique scroll (`learnTechniqueFromScroll`, consumes the item). Element roles are locked.
+  Still free in play: texts (names, traits, aspects, identity), a technique's type/rank/element,
+  current gauges, initiative, hand-added equipment, the PX/PA earned totals (players type what
+  the GM awards) and switching back to creation mode (confirmation dialog).
+- **Re-rendering**: text fields save as you type (debounced) *without* rebuilding the view, so
+  a phone keyboard never closes; other changes rebuild with `rerenderKeepingFocus`, and wait
+  for the pointer to be released so a click on a button is never swallowed by a rebuild.
+
 ## 7. Conventions
 
 - **Module boundaries:** `js/storage.js` ↔ localStorage only. `js/state.js` ↔
-  `App.storage` only (holds the in-memory copy + pub/sub). `js/profiles.js` and
-  `js/economy.js` mutate state through `App.state`'s setters — they never call
+  `App.storage` only (holds the in-memory copy + pub/sub). `js/profiles.js`,
+  `js/economy.js` and `js/sheet.js` mutate state through `App.state`'s setters — they never call
   `App.storage` directly. `js/views/*.js` and `js/components/*.js` never read
   `App.storage` and never touch `localStorage`, and never mutate a profile object
-  directly — they call `App.profiles` / `App.economy` functions.
+  directly — they call `App.profiles` / `App.economy` / `App.sheet` functions.
 - **Why views never write to localStorage directly:** it would let two code paths
   (a view, and profiles.js/economy.js) both decide what "a valid mutation" looks like,
   which is how balances or inventories drift out of sync. Centralizing every mutation in

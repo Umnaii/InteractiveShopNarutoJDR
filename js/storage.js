@@ -35,6 +35,34 @@
   }
 
   /**
+   * Whether localStorage can actually be written. False in some private-browsing modes,
+   * with site data blocked, or once a write has failed (e.g. quota exceeded). The app keeps
+   * working in memory either way; views use this to warn that nothing will be kept.
+   */
+  let storageWritable = probeStorage();
+
+  /**
+   * Try a throwaway write/remove to find out whether localStorage is usable.
+   * @returns {boolean}
+   */
+  function probeStorage() {
+    try {
+      const probeKey = `${STORAGE_PREFIX}:probe`;
+      window.localStorage.setItem(probeKey, "1");
+      window.localStorage.removeItem(probeKey);
+      return true;
+    } catch (error) {
+      console.warn("[storage] localStorage is unavailable; data will only live in memory.", error);
+      return false;
+    }
+  }
+
+  /** @returns {boolean} True while localStorage writes succeed. */
+  function isStorageWritable() {
+    return storageWritable;
+  }
+
+  /**
    * Read and JSON-parse a localStorage key, falling back cleanly on any error
    * (missing key, corrupted JSON, storage unavailable).
    * @param {string} key
@@ -62,7 +90,9 @@
   function writeJSON(key, value) {
     try {
       window.localStorage.setItem(key, JSON.stringify(value));
+      storageWritable = true;
     } catch (error) {
+      storageWritable = false;
       console.warn(`[storage] Failed to write "${key}".`, error);
     }
   }
@@ -74,14 +104,17 @@
    * @returns {void}
    */
   function ensureSchemaVersion() {
-    const storedVersion = Number(window.localStorage.getItem(KEYS.schemaVersion) || 0);
-    if (storedVersion < SCHEMA_VERSION) {
-      // No migrations exist yet between versions; just stamp the current version.
-      try {
+    try {
+      // Inside the try: merely reading window.localStorage throws when site data is blocked.
+      const storedVersion = Number(window.localStorage.getItem(KEYS.schemaVersion) || 0);
+      if (storedVersion < SCHEMA_VERSION) {
+        // No migrations exist yet between versions; just stamp the current version.
+        // (Profiles saved before the character sheet existed simply have no `sheet` field;
+        // App.sheetCalc.normalizeSheet() fills in a fresh one, so no migration is needed.)
         window.localStorage.setItem(KEYS.schemaVersion, String(SCHEMA_VERSION));
-      } catch (error) {
-        console.warn("[storage] Failed to stamp schema version.", error);
       }
+    } catch (error) {
+      console.warn("[storage] Failed to check/stamp schema version.", error);
     }
   }
 
@@ -170,5 +203,6 @@
     saveSettings,
     saveMissionLog,
     resetAllData,
+    isStorageWritable,
   };
 })();

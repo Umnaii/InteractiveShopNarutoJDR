@@ -2,7 +2,7 @@
  * Profiles view: create, rename, duplicate, delete and switch between character
  * profiles, with a preview of each profile's recent transaction history.
  * Plain script: attaches its API to the shared App namespace as App.profilesView.
- * Depends on App.state, App.profiles, App.format, App.modal, App.dom.
+ * Depends on App.state, App.profiles, App.format, App.modal, App.dom, App.profileTransfer, App.router.
  */
 
 (function () {
@@ -10,54 +10,11 @@
   window.App = window.App || {};
 
   const { getProfiles, getActiveProfileId, subscribe } = App.state;
-  const {
-    createProfile,
-    renameProfile,
-    duplicateProfile,
-    deleteProfile,
-    setActiveProfile,
-    setProfileRank,
-    exportProfile,
-    parseProfileExport,
-    importProfile,
-  } = App.profiles;
+  const { createProfile, renameProfile, duplicateProfile, setActiveProfile, setProfileRank } = App.profiles;
   const { getRankOptions, formatRyo, formatSignedRyo, formatDateTime, transactionKindLabel, csvEscape, initialOf } = App.format;
   const { openModal, closeModal } = App.modal;
   const { h, clearElement, rerenderKeepingScroll } = App.dom;
-
-  /**
-   * Turn a profile name into a filesystem-safe, accent-free filename fragment.
-   * @param {string} text
-   * @returns {string}
-   */
-  function slugify(text) {
-    return (
-      text
-        .normalize("NFD")
-        .replace(/\p{Diacritic}/gu, "")
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "") || "profil"
-    );
-  }
-
-  /**
-   * Trigger a browser download of a profile as a JSON file.
-   * @param {object} profile
-   * @returns {void}
-   */
-  function downloadProfile(profile) {
-    const payload = exportProfile(profile.id);
-    if (!payload) return;
-
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = h("a", { href: url, download: `boutique-shinobi-${slugify(profile.name)}.json` });
-    document.body.append(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  }
+  const { slugify, downloadFile, downloadProfile, openImportPicker, confirmDeleteProfile } = App.profileTransfer;
 
   /**
    * Build the full transaction history of a profile as CSV text (French column headers,
@@ -84,13 +41,7 @@
   function downloadHistoryCsv(profile) {
     // Leading BOM so Excel opens the accented French text as UTF-8 instead of guessing ANSI.
     const BOM = String.fromCharCode(0xfeff);
-    const blob = new Blob([BOM + buildHistoryCsv(profile)], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = h("a", { href: url, download: `boutique-shinobi-historique-${slugify(profile.name)}.csv` });
-    document.body.append(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    downloadFile(`boutique-shinobi-historique-${slugify(profile.name)}.csv`, BOM + buildHistoryCsv(profile), "text/csv;charset=utf-8");
   }
 
   /**
@@ -143,81 +94,14 @@
     }
 
     function buildImportCard() {
-      const fileInput = h("input", {
-        type: "file",
-        accept: "application/json,.json",
-        class: "visually-hidden",
-        id: "import-profile-file",
-        "aria-label": "Choisir un fichier de profil à importer",
-      });
-      fileInput.addEventListener("change", async () => {
-        const file = fileInput.files[0];
-        fileInput.value = "";
-        if (!file) return;
-
-        const text = await file.text();
-        const parsed = parseProfileExport(text);
-        if (!parsed.ok) {
-          window.alert(parsed.message);
-          return;
-        }
-        attemptImport(parsed.profile);
-      });
-
       const importButton = h("button", { class: "btn", type: "button" }, "Importer un profil");
-      importButton.addEventListener("click", () => fileInput.click());
+      importButton.addEventListener("click", () => openImportPicker());
 
       return h("div", { class: "card card--ink stack" }, [
         h("h2", {}, "Importer un profil"),
-        h("p", { class: "text-muted" }, "Chargez un fichier .json exporté depuis un autre appareil pour récupérer ce profil ici."),
-        h("div", { class: "row" }, [importButton, fileInput]),
+        h("p", { class: "text-muted" }, "Chargez un fichier .json exporté depuis un autre appareil pour récupérer ce profil (et sa fiche de personnage) ici."),
+        h("div", { class: "row" }, [importButton]),
       ]);
-    }
-
-    function attemptImport(profile, strategy) {
-      const result = importProfile(profile, strategy);
-
-      if (result.ok) {
-        window.alert(`Profil « ${result.profile.name} » importé avec succès.`);
-        return;
-      }
-
-      if (result.conflict) {
-        openModal({
-          title: "Profil déjà existant",
-          body: h("p", {}, `${result.message} Voulez-vous remplacer le profil existant par la version importée, ou importer ce fichier comme un nouveau profil séparé ?`),
-          footer: [
-            h("button", { class: "btn", type: "button", onClick: () => closeModal() }, "Annuler"),
-            h(
-              "button",
-              {
-                class: "btn",
-                type: "button",
-                onClick: () => {
-                  closeModal();
-                  attemptImport(profile, "duplicate");
-                },
-              },
-              "Importer comme copie",
-            ),
-            h(
-              "button",
-              {
-                class: "btn btn--danger",
-                type: "button",
-                onClick: () => {
-                  closeModal();
-                  attemptImport(profile, "replace");
-                },
-              },
-              "Remplacer",
-            ),
-          ],
-        });
-        return;
-      }
-
-      window.alert(result.message);
     }
 
     /**
@@ -258,6 +142,16 @@
       const activateButton = isActive ? null : h("button", { class: "btn btn--primary btn--sm", type: "button" }, "Activer");
       activateButton?.addEventListener("click", () => setActiveProfile(profile.id));
 
+      const sheetButton = h(
+        "button",
+        { class: isActive ? "btn btn--primary btn--sm" : "btn btn--sm", type: "button", "aria-label": `Ouvrir la fiche de ${profile.name}` },
+        "Fiche",
+      );
+      sheetButton.addEventListener("click", () => {
+        setActiveProfile(profile.id);
+        App.router.navigate("/sheet");
+      });
+
       const duplicateButton = h("button", { class: "btn btn--sm", type: "button" }, "Dupliquer");
       duplicateButton.addEventListener("click", () => duplicateProfile(profile.id));
 
@@ -273,7 +167,7 @@
         { class: "btn btn--sm btn--danger", type: "button", "aria-label": `Supprimer ${profile.name}` },
         "Supprimer",
       );
-      deleteButton.addEventListener("click", () => confirmDelete(profile));
+      deleteButton.addEventListener("click", () => confirmDeleteProfile(profile));
 
       const itemTypes = profile.inventory.length;
       const transactions = profile.history.length;
@@ -298,7 +192,7 @@
             h("span", { class: "profile-stat__label" }, transactions > 1 ? "transactions" : "transaction"),
           ]),
         ]),
-        h("div", { class: "profile-card__actions" }, [activateButton, duplicateButton, exportButton, deleteButton]),
+        h("div", { class: "profile-card__actions" }, [sheetButton, activateButton, duplicateButton, exportButton, deleteButton]),
         h("div", { class: "profile-card__history" }, [h("h3", {}, "Derniers mouvements"), buildHistoryPreview(profile)]),
       ]);
     }
@@ -372,29 +266,6 @@
         body: table,
         footer: [exportCsvButton, closeButton],
         wide: true,
-      });
-    }
-
-    function confirmDelete(profile) {
-      openModal({
-        title: `Supprimer « ${profile.name} » ?`,
-        body: h("p", {}, "Cette action est irréversible : le solde, l'inventaire et l'historique de ce profil seront définitivement perdus."),
-        footer: [
-          h("button", { class: "btn", type: "button", onClick: () => closeModal() }, "Annuler"),
-          h(
-            "button",
-            {
-              class: "btn btn--danger",
-              type: "button",
-              onClick: () => {
-                const result = deleteProfile(profile.id);
-                if (!result.ok) window.alert(result.message);
-                closeModal();
-              },
-            },
-            "Supprimer définitivement",
-          ),
-        ],
       });
     }
 

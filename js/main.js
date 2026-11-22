@@ -18,10 +18,12 @@
   const { renderMissionsView } = App.missionsView;
   const { renderProfilesView } = App.profilesView;
   const { renderCartView } = App.cartView;
+  const { renderSheetView } = App.sheetView;
   const { h, clearElement } = App.dom;
 
   const NAV_ITEMS = [
     { path: "/shop", label: "Boutique" },
+    { path: "/sheet", label: "Fiche" },
     { path: "/cart", label: "Panier" },
     { path: "/rarities", label: "Raretés" },
     { path: "/inventory", label: "Inventaire" },
@@ -87,6 +89,7 @@
     registerRoute("/inventory", () => renderInventoryView(view()));
     registerRoute("/missions", () => renderMissionsView(view()));
     registerRoute("/profiles", () => renderProfilesView(view()));
+    registerRoute("/sheet", () => renderSheetView(view()));
 
     initRouter();
   }
