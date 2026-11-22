@@ -6,7 +6,7 @@
  * Depends on App.dom, App.items, App.format (must be loaded first).
  *
  * @typedef {Object} ShopFilters
- * @property {string} category - "" for all, or "A".."J".
+ * @property {string} category - "" for all, or a CATEGORY_LABELS letter.
  * @property {number[]} rarities - Empty array for all rarities, otherwise the selected tiers (1..5), OR'd together.
  * @property {string} type - "" for all, or an item type.
  * @property {string} search - Free-text name search.

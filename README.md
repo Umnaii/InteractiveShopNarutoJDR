@@ -47,7 +47,9 @@ JavaScript est écrit en scripts classiques (pas de modules ES), donc rien n'emp
 l'ouvrir directement depuis le disque (`file://`).
 
 Aucune connexion internet n'est requise, même au premier chargement : aucune police, aucun
-script ni aucune feuille de style externe n'est chargé depuis un CDN.
+script ni aucune feuille de style externe n'est chargé depuis un CDN. Les polices des titres
+(Dela Gothic One et M PLUS Rounded 1c, licence SIL Open Font License) sont incluses dans le
+dossier `fonts/`, avec leurs licences.
 
 ## Publier l'application
 

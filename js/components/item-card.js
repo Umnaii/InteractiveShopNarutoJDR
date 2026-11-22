@@ -16,7 +16,8 @@
   /**
    * Build an item card for the shop grid.
    * @param {object} item
-   * @param {{canBuy?: boolean, onBuy?: (itemId: string) => void, onAddToCart?: (itemId: string) => void}} [options]
+   * @param {{canBuy?: boolean, onBuy?: (itemId: string, button: HTMLElement) => void, onAddToCart?: (itemId: string) => void}} [options]
+   *   onBuy also receives the clicked button, so the caller can play the poof effect on it.
    * @returns {HTMLElement}
    */
   function createItemCard(item, options) {
@@ -33,7 +34,7 @@
             type: "button",
             disabled: !options.canBuy,
             "aria-label": `Acheter ${item.name}`,
-            onClick: () => options.onBuy?.(item.id),
+            onClick: (event) => options.onBuy?.(item.id, event.currentTarget),
           },
           "Acheter",
         )

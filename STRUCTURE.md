@@ -10,30 +10,35 @@ index.html                   Page shell: header, nav, #app-view, #modal-root, lo
 STRUCTURE.md                 This file
 README.md                    What it is, how to run it, how data persists, how to reset it
 
+fonts/                       Bundled title fonts (Dela Gothic One, M PLUS Rounded 1c) + their OFL license texts
+
 css/
-  variables.css               Design tokens: colors, spacing, typography, radii, shadows
+  fonts.css                   @font-face declarations for the bundled fonts in fonts/ (loaded first)
+  variables.css               Design tokens: colors, spacing, typography, radii, shadows, spiral motif
   base.css                    CSS reset, base element styles, focus-visible, scrollbars
   layout.css                  App shell: header, nav, responsive containers/grids
   components.css               Buttons, cards, badges, star ratings, tables, forms, modal, toggles
 
 data/
-  items.js                    App.items: the full catalogue array, extracted from boutique_shinobi_catalogue.md, + category labels
+  items.js                    App.items: the full catalogue array, from the "Système d'argent — JDR Naruto" rules, + category labels
   rarities.js                 App.rarities: the 5-tier rarity legend, + closing note
   missions.js                 App.missions: mission ranks (D..S, plus a "Libre" free-form rank), village cut / party size / leader multiplier constants
 
 js/
-  main.js                     Entry point: boots state, builds header/nav, registers routes, starts the router
+  main.js                     Entry point: boots state, builds header/nav, mounts the profile switcher, registers routes, starts the router
   router.js                   Tiny hash router: registerRoute(pattern, handler), navigate(path), initRouter() -> App.router
   state.js                    In-memory app state singleton + subscribe/notify -> App.state. The ONLY module allowed to call App.storage. Also owns the session-only cart (not persisted)
   storage.js                  localStorage read/write, key naming, schema version + migrations -> App.storage. The ONLY module allowed to touch localStorage
   profiles.js                 Profile CRUD (create/rename/duplicate/delete/activate) + export/import as a portable JSON file -> App.profiles. Mutates state through App.state
   economy.js                  ALL Ryo math: purchase, cart checkout, undo-purchase, resale, consume, manual adjustment, mission payout breakdown/crediting + GM mission journal -> App.economy
-  format.js                   Pure formatting helpers: Ryo strings, star glyphs, French labels, dates, CSV field escaping -> App.format
-  dom.js                      Tiny `h(tag, attrs, children)` element builder + clearElement() -> App.dom, shared by components/views
+  format.js                   Pure formatting helpers: Ryo strings, star glyphs, French labels, dates, CSV field escaping, profile initials (seals) -> App.format
+  dom.js                      Tiny `h(tag, attrs, children)` element builder + clearElement() + rerenderKeepingScroll() (views wrap their state-change re-render in it so buying/consuming doesn't jump to the top) -> App.dom, shared by components/views
   components/
     star-rating.js               Renders a rarity integer as colored ★/☆ glyphs -> App.starRating
     item-card.js                 Shop grid tile: name links to detail view, quick-buy + add-to-cart buttons -> App.itemCard
     modal.js                     Generic modal dialog (openModal/closeModal), used for delete confirmation and the full transaction history table -> App.modal
+    poof.js                      "Poof" smoke-burst effect played where a purchase is confirmed (playPoof(rect, label)) -> App.poof
+    profile-switcher.js          Header profile switcher: ninja ID card button + unrolling scroll listbox, substitution animation on switch, rolling balance digits. Mounted once, patched via update() -> App.profileSwitcher
     filters.js                   Shop filter bar: category/rarity/type/search/sort controls -> App.filters
   views/
     shop.js                      Route "/shop" — browse + filter + sort the catalogue, quick-buy or add to cart -> App.shopView
@@ -96,8 +101,10 @@ data/items.js, data/rarities.js, data/missions.js   (no dependencies)
   -> js/components/star-rating.js                          (needs App.dom, App.format)
   -> js/components/item-card.js                             (needs App.dom, App.starRating, App.format)
   -> js/components/modal.js                                 (needs App.dom)
+  -> js/components/poof.js                                  (needs App.dom)
+  -> js/components/profile-switcher.js                      (needs App.dom, App.state, App.profiles, App.format, App.poof)
   -> js/components/filters.js                               (needs App.dom, App.items, App.format)
-  -> js/views/*.js                                            (each needs whichever of the above it reads — see its header comment; js/views/cart.js needs App.state, App.economy, App.format, App.dom)
+  -> js/views/*.js                                            (each needs whichever of the above it reads — see its header comment; js/views/cart.js needs App.state, App.economy, App.format, App.dom, App.poof)
   -> js/router.js                                              (no dependencies)
   -> js/main.js                                                 (needs everything; boots the app on DOMContentLoaded)
 ```
@@ -152,7 +159,7 @@ localStorage  <-->  App.storage  <-->  App.state  <-->  App.profiles / App.econo
  * @typedef {Object} Item
  * @property {string} id            // stable kebab-case slug, e.g. "kunai-explosif"
  * @property {string} name          // French display name
- * @property {string} category      // "A".."J", matches App.items.CATEGORY_LABELS keys
+ * @property {string} category      // "A".."G", matches App.items.CATEGORY_LABELS keys
  * @property {number} rarity        // integer 1..5 (star count); ranged rarities use the lower bound
  * @property {number|{min:number,max:number}|null} price   // Ryo; null = hors-commerce/non vendu
  * @property {string} priceLabel    // raw French price string, exactly as shown to players
@@ -162,8 +169,8 @@ localStorage  <-->  App.storage  <-->  App.state  <-->  App.profiles / App.econo
  * @property {"consommable"|"permanent"|"restreint"|"intrigue"} type
  * @property {string} usage         // French conditions of use
  * @property {string} effect        // French mechanical effect text
- * @property {boolean} purchasable  // false for hors-commerce / non vendues items
- * @property {boolean} gmOnly       // true for section F (restricted substances) and J (plot items)
+ * @property {boolean} purchasable  // false for items that can't be bought (section G, legendary weapons)
+ * @property {boolean} gmOnly       // true for items only the GM should see (none in the current catalogue)
  */
 
 // data/rarities.js -> App.rarities.RARITY_TIERS

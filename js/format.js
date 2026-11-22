@@ -63,7 +63,7 @@
   }
 
   /**
-   * French label for a category letter (A..J).
+   * French label for a category letter (see App.items.CATEGORY_LABELS).
    * @param {string} category
    * @returns {string}
    */
@@ -125,6 +125,17 @@
     }
   }
 
+  /**
+   * First character of a name, uppercased, for the red profile seals. "?" when empty.
+   * Uses Array.from so an accented or non-Latin first letter stays one character.
+   * @param {string} name
+   * @returns {string}
+   */
+  function initialOf(name) {
+    const first = Array.from((name || "").trim())[0];
+    return first ? first.toLocaleUpperCase("fr-FR") : "?";
+  }
+
   App.format = {
     formatRyo,
     formatSignedRyo,
@@ -134,5 +145,7 @@
     transactionKindLabel,
     getRankOptions,
     formatDateTime,
+    csvEscape,
+    initialOf,
   };
 })();

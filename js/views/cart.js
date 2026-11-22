@@ -2,7 +2,7 @@
  * Cart ("panier") view: stage items and quantities before buying, see the running
  * total, then check out for the active profile in a single atomic purchase.
  * Plain script: attaches its API to the shared App namespace as App.cartView.
- * Depends on App.state, App.economy, App.format, App.dom.
+ * Depends on App.state, App.economy, App.format, App.dom, App.poof.
  */
 
 (function () {
@@ -12,7 +12,8 @@
   const { getCart, setCartQuantity, removeFromCart, clearCart, getActiveProfile, subscribe } = App.state;
   const { getItemById, getItemUnitPrice, getItemTotalPrice, purchaseCart } = App.economy;
   const { formatRyo } = App.format;
-  const { h, clearElement } = App.dom;
+  const { h, clearElement, rerenderKeepingScroll } = App.dom;
+  const { playPoof } = App.poof;
 
   /**
    * Render the cart view into a container.
@@ -20,14 +21,14 @@
    * @returns {() => void} Cleanup function to call when leaving the view.
    */
   function renderCartView(container) {
-    function handleCheckout(profileId, lines) {
+    function handleCheckout(profileId, lines, buttonRect) {
       const result = purchaseCart(profileId, lines);
       if (!result.ok) {
         window.alert(result.message);
         return;
       }
       clearCart();
-      window.alert("Achat validé, le panier a été vidé.");
+      playPoof(buttonRect, "Panier acheté !");
     }
 
     function render() {
@@ -80,11 +81,13 @@
           class: "btn btn--primary",
           type: "button",
           disabled: !activeProfile,
-          onClick: () => {
+          onClick: (event) => {
             if (!activeProfile) return;
             handleCheckout(
               activeProfile.id,
               lines.map(({ line }) => ({ itemId: line.itemId, quantity: line.quantity })),
+              // Captured before purchasing: checkout empties the cart and re-renders the view.
+              event.currentTarget.getBoundingClientRect(),
             );
           },
         },
@@ -111,7 +114,7 @@
     }
 
     render();
-    return subscribe(() => render());
+    return subscribe(() => rerenderKeepingScroll(render));
   }
 
   App.cartView = { renderCartView };

@@ -57,7 +57,15 @@
     );
     dialog.querySelector(".btn-icon").addEventListener("click", close);
 
-    const overlay = h("div", { class: "modal-overlay" }, dialog);
+    // Scroll look: a wooden roller above and below the dialog. The CSS grows the middle
+    // "paper" row from 0 to its full height, which pushes the rollers apart as it unrolls.
+    const scroll = h("div", { class: wide ? "modal-scroll modal-scroll--wide" : "modal-scroll" }, [
+      h("div", { class: "scroll-roller", "aria-hidden": "true" }),
+      h("div", { class: "modal-scroll__paper" }, dialog),
+      h("div", { class: "scroll-roller", "aria-hidden": "true" }),
+    ]);
+
+    const overlay = h("div", { class: "modal-overlay" }, scroll);
     overlay.addEventListener("click", (event) => {
       if (event.target === overlay) close();
     });

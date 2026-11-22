@@ -2,7 +2,7 @@
  * Item detail view: full information for a single catalogue item, reachable by
  * clicking an item in the shop or via the "#/item/:id" route.
  * Plain script: attaches its API to the shared App namespace as App.itemDetailView.
- * Depends on App.economy, App.state, App.starRating, App.format, App.dom.
+ * Depends on App.economy, App.state, App.starRating, App.format, App.dom, App.poof.
  */
 
 (function () {
@@ -12,8 +12,9 @@
   const { getItemById, getItemUnitPrice, getItemTotalPrice, purchaseItem } = App.economy;
   const { getActiveProfile, getSettings, addToCart, subscribe } = App.state;
   const { createStarRating } = App.starRating;
+  const { playPoof } = App.poof;
   const { categoryLabel, typeLabel, formatRyo } = App.format;
-  const { h, clearElement } = App.dom;
+  const { h, clearElement, rerenderKeepingScroll } = App.dom;
 
   /**
    * Render the item detail view into a container.
@@ -92,14 +93,20 @@
           class: "btn btn--primary",
           type: "button",
           disabled: !activeProfile,
-          onClick: () => {
+          onClick: (event) => {
             if (!activeProfile) {
               window.alert("Sélectionnez d'abord un profil actif dans l'en-tête.");
               return;
             }
             const qty = Math.max(1, Math.floor(Number(quantityInput.value) || 1));
+            // Captured before purchasing: a successful purchase re-renders this view.
+            const buttonRect = event.currentTarget.getBoundingClientRect();
             const result = purchaseItem(activeProfile.id, item.id, qty);
-            window.alert(result.ok ? `Achat effectué : ${item.name} ×${qty}.` : result.message);
+            if (!result.ok) {
+              window.alert(result.message);
+              return;
+            }
+            playPoof(buttonRect, `Acheté ×${qty} !`);
           },
         },
         "Acheter",
@@ -153,7 +160,7 @@
     }
 
     render();
-    return subscribe(() => render());
+    return subscribe(() => rerenderKeepingScroll(render));
   }
 
   App.itemDetailView = { renderItemDetailView };

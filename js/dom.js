@@ -66,5 +66,21 @@
     while (node.firstChild) node.removeChild(node.firstChild);
   }
 
-  App.dom = { h, clearElement };
+  /**
+   * Run a view's render function without losing the page's scroll position.
+   * Views rebuild by clearing their container first; for that instant the page is
+   * nearly empty, so the browser clamps the scroll to the top and never scrolls back.
+   * Restoring synchronously, before the next paint, means no visible jump.
+   * Use it for re-renders triggered by state changes (buy, consume, resell...), not
+   * for navigating to a new route, where starting at the top is expected.
+   * @param {() => void} render
+   * @returns {void}
+   */
+  function rerenderKeepingScroll(render) {
+    const { scrollX, scrollY } = window;
+    render();
+    window.scrollTo(scrollX, scrollY);
+  }
+
+  App.dom = { h, clearElement, rerenderKeepingScroll };
 })();

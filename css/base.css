@@ -7,7 +7,7 @@
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -24,17 +24,38 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Large faint spiral watermark in the bottom-right corner, behind all content. */
+body::before {
+  content: "";
+  position: fixed;
+  right: -7rem;
+  bottom: -7rem;
+  width: 30rem;
+  height: 30rem;
+  background: var(--motif-spiral-page) center / contain no-repeat;
+  pointer-events: none;
+  z-index: -1;
+}
+
 h1, h2, h3, h4 {
   font-family: var(--font-heading);
-  font-weight: 600;
+  font-weight: 800;
   line-height: 1.25;
   margin: 0 0 var(--space-3);
   color: var(--color-text);
   letter-spacing: 0.01em;
 }
 
-h1 { font-size: 1.75rem; }
-h2 { font-size: 1.375rem; }
+/* Page and section titles: heavy display face with an orange offset, like an episode title card. */
+h1, h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-shadow: 2px 2px 0 var(--color-accent);
+}
+
+h1 { font-size: 1.85rem; }
+h2 { font-size: 1.375rem; text-shadow: 1.5px 1.5px 0 var(--color-accent); }
 h3 { font-size: 1.125rem; }
 h4 { font-size: 1rem; }
 
@@ -43,7 +64,7 @@ p {
 }
 
 a {
-  color: var(--color-accent);
+  color: var(--color-accent-ink);
   text-decoration: none;
 }
 
@@ -115,6 +136,11 @@ table {
 ::-webkit-scrollbar-thumb {
   background: var(--color-border-strong);
   border-radius: var(--radius-pill);
+}
+
+/* The `hidden` attribute must win over any component's display rule (e.g. display: grid). */
+[hidden] {
+  display: none !important;
 }
 
 .visually-hidden {

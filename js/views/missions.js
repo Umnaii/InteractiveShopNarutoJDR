@@ -13,8 +13,8 @@
   const { MISSION_RANKS, getMissionRank, DEFAULT_PARTY_SIZE, VILLAGE_CUT_RATE, LEADER_SHARE_MULTIPLIER } = App.missions;
   const { getProfiles, getMissionLog, subscribe } = App.state;
   const { computeMissionPayout, creditMissionPayout, adjustBalance } = App.economy;
-  const { formatRyo, formatDateTime, csvEscape } = App.format;
-  const { h, clearElement } = App.dom;
+  const { formatRyo, formatDateTime, csvEscape, initialOf } = App.format;
+  const { h, clearElement, rerenderKeepingScroll } = App.dom;
 
   /** How many recent mission-log entries to show inline; the CSV export always has everything. */
   const MISSION_LOG_PREVIEW_SIZE = 10;
@@ -62,12 +62,25 @@
      * a full rebuild so typing in the reward/party-size fields keeps focus.
      */
     function buildMissionCard(profiles) {
-      const rankSelect = h(
-        "select",
-        { id: "mission-rank" },
-        MISSION_RANKS.map((r) => h("option", { value: r.rank }, r.rank === "Libre" ? "Libre / Autre" : `Rang ${r.rank}`)),
+      // Rank picker: one stamp per rank, as native radio buttons (arrow keys work).
+      // The chosen stamp is "pressed" in full color; CSS replays the stamp animation on it.
+      const rankPicker = h(
+        "div",
+        { class: "rank-picker" },
+        MISSION_RANKS.map((r) => {
+          const input = h("input", {
+            type: "radio",
+            name: "mission-rank",
+            value: r.rank,
+            class: "visually-hidden",
+            checked: r.rank === formState.rank,
+          });
+          input.addEventListener("change", () => {
+            if (input.checked) selectRank(r.rank);
+          });
+          return h("label", { class: "rank-picker__option" }, [input, createRankStamp(r.rank)]);
+        }),
       );
-      rankSelect.value = formState.rank;
 
       const rewardInput = h("input", { type: "number", id: "mission-reward", min: "0", value: formState.totalReward });
       const rewardHint = h("span", { class: "field-hint" }, rewardHintText(formState.rank));
@@ -76,14 +89,18 @@
       const leaderCheckbox = h("input", { type: "checkbox", id: "mission-leader-bonus", checked: formState.leaderBonus });
 
       const leaderSelectSlot = h("div", {});
-      const breakdownSlot = h("div", {});
-      const profilesSlot = h("div", { class: "stack" });
+      const breakdownSlot = h("div", { class: "stack" });
+      const profilesSlot = h("div", { class: "participant-grid" });
 
       function renderProfilesSlot() {
         clearElement(profilesSlot);
         profilesSlot.append(
           ...profiles.map((profile) => {
-            const checkbox = h("input", { type: "checkbox", checked: formState.selectedProfileIds.includes(profile.id) });
+            const checkbox = h("input", {
+              type: "checkbox",
+              class: "visually-hidden",
+              checked: formState.selectedProfileIds.includes(profile.id),
+            });
             checkbox.addEventListener("change", () => {
               if (checkbox.checked) {
                 formState.selectedProfileIds = [...formState.selectedProfileIds, profile.id];
@@ -94,7 +111,12 @@
               renderLeaderSelectSlot();
               renderBreakdownSlot();
             });
-            return h("label", { class: "checkbox-field" }, [checkbox, `${profile.name} (${profile.rank})`]);
+            return h("label", { class: "participant-chip" }, [
+              checkbox,
+              h("span", { class: "profile-seal profile-seal--sm", "aria-hidden": "true" }, initialOf(profile.name)),
+              h("span", { class: "participant-chip__name" }, profile.name),
+              h("span", { class: "rank-badge", "data-rank": profile.rank }, profile.rank),
+            ]);
           }),
         );
       }
@@ -125,13 +147,16 @@
           leaderBonus: formState.leaderBonus,
         });
 
+        // [label, value, row modifier]: "cut" = money leaving, "total" = what each ninja gets.
         const rows = [
           ["Total brut", formatRyo(breakdown.gross)],
-          [`Part du village (${Math.round(VILLAGE_CUT_RATE * 100)} %)`, `− ${formatRyo(breakdown.villageCut)}`],
+          [`Part du village (${Math.round(VILLAGE_CUT_RATE * 100)} %)`, `− ${formatRyo(breakdown.villageCut)}`, "cut"],
           ["Net à répartir", formatRyo(breakdown.net)],
-          ["Part par ninja", formatRyo(breakdown.shareEach)],
+          ["Part par ninja", formatRyo(breakdown.shareEach), "total"],
         ];
-        if (breakdown.leaderBonus) rows.push([`Part du chef d'équipe (×${LEADER_SHARE_MULTIPLIER})`, formatRyo(breakdown.leaderShare)]);
+        if (breakdown.leaderBonus) {
+          rows.push([`Part du chef d'équipe (×${LEADER_SHARE_MULTIPLIER})`, formatRyo(breakdown.leaderShare), "total"]);
+        }
 
         const creditButton = h("button", { class: "btn btn--primary", type: "button" }, "Créditer les profils sélectionnés");
         creditButton.addEventListener("click", () => {
@@ -148,18 +173,27 @@
         });
 
         breakdownSlot.append(
-          h("table", { class: "table" }, h("tbody", {}, rows.map(([label, value]) => h("tr", {}, [h("td", {}, label), h("td", {}, value)])))),
-          creditButton,
+          h(
+            "dl",
+            { class: "payout-receipt" },
+            rows.map(([label, value, modifier]) =>
+              h("div", { class: modifier ? `payout-receipt__row payout-receipt__row--${modifier}` : "payout-receipt__row" }, [
+                h("dt", {}, label),
+                h("dd", {}, value),
+              ]),
+            ),
+          ),
+          h("div", {}, creditButton),
         );
       }
 
-      rankSelect.addEventListener("change", () => {
-        formState.rank = rankSelect.value;
-        formState.totalReward = getMissionRank(formState.rank).defaultReward;
+      function selectRank(rank) {
+        formState.rank = rank;
+        formState.totalReward = getMissionRank(rank).defaultReward;
         rewardInput.value = formState.totalReward;
-        rewardHint.textContent = rewardHintText(formState.rank);
+        rewardHint.textContent = rewardHintText(rank);
         renderBreakdownSlot();
-      });
+      }
       rewardInput.addEventListener("input", () => {
         formState.totalReward = Number(rewardInput.value) || 0;
         renderBreakdownSlot();
@@ -178,10 +212,10 @@
       renderLeaderSelectSlot();
       renderBreakdownSlot();
 
-      return h("div", { class: "card stack" }, [
+      return h("div", { class: "card card--ink stack" }, [
         h("h2", {}, "Enregistrer une mission"),
+        h("fieldset", { class: "field" }, [h("legend", {}, "Rang de la mission"), rankPicker]),
         h("div", { class: "form-grid" }, [
-          h("div", { class: "field" }, [h("label", { for: "mission-rank" }, "Rang de la mission"), rankSelect]),
           h("div", { class: "field" }, [h("label", { for: "mission-reward" }, "Récompense totale (Ryo)"), rewardInput, rewardHint]),
           h("div", { class: "field" }, [h("label", { for: "mission-party-size" }, "Nombre de ninjas"), partySizeInput]),
         ]),
@@ -217,7 +251,7 @@
         window.alert("Ajustement appliqué.");
       });
 
-      return h("div", { class: "card stack" }, [
+      return h("div", { class: "card card--ink stack" }, [
         h("h2", {}, "Ajustement manuel (décision du conteur)"),
         h("div", { class: "form-grid" }, [
           h("div", { class: "field" }, [h("label", { for: "adjustment-profile" }, "Profil"), profileSelect]),
@@ -240,7 +274,7 @@
       downloadButton.addEventListener("click", () => downloadMissionLogCsv(missionLog));
 
       if (!missionLog.length) {
-        return h("div", { class: "card stack" }, [
+        return h("div", { class: "card card--ink stack" }, [
           h("h2", {}, "Journal des missions (conteur)"),
           h("p", { class: "text-faint" }, "Aucune mission enregistrée pour le moment."),
         ]);
@@ -250,14 +284,14 @@
       const rows = preview.map((entry) =>
         h("tr", {}, [
           h("td", {}, formatDateTime(entry.timestamp)),
-          h("td", {}, entry.rank === "Libre" ? "Libre / Autre" : `Rang ${entry.rank}`),
+          h("td", {}, createRankStamp(entry.rank, { small: true })),
           h("td", {}, formatRyo(entry.gross)),
           h("td", {}, String(entry.partySize)),
           h("td", {}, entry.participantNames.join(", ")),
         ]),
       );
 
-      return h("div", { class: "card stack" }, [
+      return h("div", { class: "card card--ink stack" }, [
         h("div", { class: "row row--between" }, [h("h2", {}, "Journal des missions (conteur)"), downloadButton]),
         h(
           "p",
@@ -278,7 +312,23 @@
     }
 
     render();
-    return subscribe(() => render());
+    return subscribe(() => rerenderKeepingScroll(render));
+  }
+
+  /**
+   * Build a mission rank stamp: the rank letter in an ink-stamp circle, colored per rank.
+   * @param {string} rank - "D" | "C" | "B" | "A" | "S" | "Libre".
+   * @param {{small?: boolean}} [options] - small: compact, non-animated version for tables.
+   * @returns {HTMLElement}
+   */
+  function createRankStamp(rank, options) {
+    const small = Boolean(options && options.small);
+    const label = rank === "Libre" ? "Mission libre / autre" : `Mission de rang ${rank}`;
+    return h(
+      "span",
+      { class: small ? "rank-stamp rank-stamp--sm" : "rank-stamp", "data-rank": rank, role: "img", "aria-label": label, title: label },
+      rank,
+    );
   }
 
   /**

@@ -14,7 +14,7 @@
   const { getItemById, getItemUnitPrice, getInventoryValue, resellItem, consumeItem, undoLastPurchase } = App.economy;
   const { formatRyo } = App.format;
   const { createStarRating } = App.starRating;
-  const { h, clearElement } = App.dom;
+  const { h, clearElement, rerenderKeepingScroll } = App.dom;
 
   /**
    * Render the inventory view into a container.
@@ -128,7 +128,7 @@
     }
 
     render();
-    return subscribe(() => render());
+    return subscribe(() => rerenderKeepingScroll(render));
   }
 
   App.inventoryView = { renderInventoryView };

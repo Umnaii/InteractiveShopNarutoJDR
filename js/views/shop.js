@@ -2,7 +2,7 @@
  * Shop view: browse the catalogue grouped by category, filter it, and buy items
  * for the active profile.
  * Plain script: attaches its API to the shared App namespace as App.shopView.
- * Depends on App.items, App.state, App.economy, App.filters, App.itemCard, App.dom.
+ * Depends on App.items, App.state, App.economy, App.filters, App.itemCard, App.dom, App.poof.
  */
 
 (function () {
@@ -14,7 +14,8 @@
   const { purchaseItem, getItemUnitPrice } = App.economy;
   const { createFilterBar } = App.filters;
   const { createItemCard } = App.itemCard;
-  const { h, clearElement } = App.dom;
+  const { playPoof } = App.poof;
+  const { h, clearElement, rerenderKeepingScroll } = App.dom;
 
   const DEFAULT_FILTERS = { category: "", rarities: [], type: "", search: "", sort: "" };
 
@@ -48,16 +49,20 @@
       return true;
     }
 
-    function handleBuy(itemId) {
+    function handleBuy(itemId, button) {
       const activeProfile = getActiveProfile();
       if (!activeProfile) {
         window.alert("Sélectionnez d'abord un profil actif dans l'en-tête.");
         return;
       }
+      // Captured before purchasing: a successful purchase re-renders the grid and removes the button.
+      const buttonRect = button?.getBoundingClientRect();
       const result = purchaseItem(activeProfile.id, itemId, 1);
       if (!result.ok) {
         window.alert(result.message);
+        return;
       }
+      playPoof(buttonRect, "Acheté !");
     }
 
     function handleAddToCart(itemId) {
@@ -135,7 +140,7 @@
 
     renderResults();
 
-    return subscribe(() => renderResults());
+    return subscribe(() => rerenderKeepingScroll(renderResults));
   }
 
   App.shopView = { renderShopView };

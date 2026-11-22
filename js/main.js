@@ -8,8 +8,8 @@
   "use strict";
   window.App = window.App || {};
 
-  const { initState, getProfiles, getActiveProfile, getCart, subscribe } = App.state;
-  const { setActiveProfile } = App.profiles;
+  const { initState, getCart, subscribe } = App.state;
+  const { createProfileSwitcher } = App.profileSwitcher;
   const { registerRoute, initRouter } = App.router;
   const { renderShopView } = App.shopView;
   const { renderItemDetailView } = App.itemDetailView;
@@ -18,7 +18,6 @@
   const { renderMissionsView } = App.missionsView;
   const { renderProfilesView } = App.profilesView;
   const { renderCartView } = App.cartView;
-  const { formatRyo } = App.format;
   const { h, clearElement } = App.dom;
 
   const NAV_ITEMS = [
@@ -56,35 +55,17 @@
   }
 
   /**
-   * Render the profile switcher in the header: active profile select + balance,
-   * or a call-to-action to create a first profile.
+   * Mount the header profile switcher (ninja ID card + dropdown scroll) once. It patches
+   * itself on every state change, so it can animate between states.
    * @returns {void}
    */
-  function renderProfileSwitcher() {
+  function mountProfileSwitcher() {
     const container = document.getElementById("profile-switcher");
     clearElement(container);
-
-    const profiles = getProfiles();
-    if (!profiles.length) {
-      container.append(h("a", { class: "btn btn--primary btn--sm", href: "#/profiles" }, "Créer un profil"));
-      return;
-    }
-
-    const active = getActiveProfile();
-    const select = h(
-      "select",
-      { "aria-label": "Profil actif", onChange: (event) => setActiveProfile(event.target.value) },
-      profiles.map((profile) => h("option", { value: profile.id }, `${profile.name} (${profile.rank})`)),
-    );
-    select.value = active?.id ?? "";
-
-    container.append(
-      select,
-      h("span", { class: "balance-badge" }, [
-        h("span", { class: "balance-badge__amount" }, active ? formatRyo(active.balance) : "—"),
-        h("span", { class: "balance-badge__label" }, "Solde"),
-      ]),
-    );
+    const switcher = createProfileSwitcher();
+    container.append(switcher.element);
+    switcher.update();
+    subscribe(switcher.update);
   }
 
   /**
@@ -94,9 +75,8 @@
   function boot() {
     initState();
     renderNav();
-    renderProfileSwitcher();
+    mountProfileSwitcher();
     updateCartBadge();
-    subscribe(renderProfileSwitcher);
     subscribe(updateCartBadge);
 
     const view = () => document.getElementById("app-view");

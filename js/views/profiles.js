@@ -21,9 +21,9 @@
     parseProfileExport,
     importProfile,
   } = App.profiles;
-  const { getRankOptions, formatRyo, formatSignedRyo, formatDateTime, transactionKindLabel, csvEscape } = App.format;
+  const { getRankOptions, formatRyo, formatSignedRyo, formatDateTime, transactionKindLabel, csvEscape, initialOf } = App.format;
   const { openModal, closeModal } = App.modal;
-  const { h, clearElement } = App.dom;
+  const { h, clearElement, rerenderKeepingScroll } = App.dom;
 
   /**
    * Turn a profile name into a filesystem-safe, accent-free filename fragment.
@@ -104,14 +104,22 @@
       const profiles = getProfiles();
       const activeId = getActiveProfileId();
 
-      container.append(h("div", { class: "view-header" }, [h("h1", {}, "Profils")]), buildCreateForm(), buildImportCard());
+      container.append(
+        h("div", { class: "view-header" }, [
+          h("h1", {}, "Profils"),
+          profiles.length ? h("p", {}, `${profiles.length} ninja${profiles.length > 1 ? "s" : ""} enregistré${profiles.length > 1 ? "s" : ""}`) : null,
+        ]),
+        h("div", { class: "grid two-col profiles-tools" }, [buildCreateForm(), buildImportCard()]),
+      );
 
       if (!profiles.length) {
         container.append(h("div", { class: "empty-state" }, "Aucun profil pour le moment. Créez-en un ci-dessus."));
         return;
       }
 
-      container.append(h("div", { class: "grid two-col" }, profiles.map((profile) => buildProfileCard(profile, profile.id === activeId))));
+      container.append(
+        h("div", { class: "grid two-col profiles-grid" }, profiles.map((profile) => buildProfileCard(profile, profile.id === activeId))),
+      );
     }
 
     function buildCreateForm() {
@@ -124,7 +132,7 @@
         if (!result.ok) window.alert(result.message);
       });
 
-      return h("div", { class: "card" }, [
+      return h("div", { class: "card card--ink stack" }, [
         h("h2", {}, "Nouveau profil"),
         h("div", { class: "form-grid" }, [
           h("div", { class: "field" }, [h("label", { for: "new-profile-name" }, "Nom"), nameInput]),
@@ -159,7 +167,7 @@
       const importButton = h("button", { class: "btn", type: "button" }, "Importer un profil");
       importButton.addEventListener("click", () => fileInput.click());
 
-      return h("div", { class: "card" }, [
+      return h("div", { class: "card card--ink stack" }, [
         h("h2", {}, "Importer un profil"),
         h("p", { class: "text-muted" }, "Chargez un fichier .json exporté depuis un autre appareil pour récupérer ce profil ici."),
         h("div", { class: "row" }, [importButton, fileInput]),
@@ -212,24 +220,43 @@
       window.alert(result.message);
     }
 
+    /**
+     * Build one profile as a ninja ID sheet: red seal with the initial, editable name,
+     * rank pill, balance on a paper tag, stats, actions and recent history. The active
+     * profile gets an "ACTIF" stamp in the corner and an orange shadow.
+     */
     function buildProfileCard(profile, isActive) {
-      const nameInput = h("input", { type: "text", value: profile.name, "aria-label": `Nom du profil ${profile.name}` });
-      const rankSelect = h("select", { "aria-label": `Grade du profil ${profile.name}` }, getRankOptions().map((rank) => h("option", { value: rank }, rank)));
+      const nameInput = h("input", {
+        type: "text",
+        class: "profile-card__name-input",
+        value: profile.name,
+        "aria-label": `Nom du profil ${profile.name}`,
+      });
+      const rankSelect = h(
+        "select",
+        { class: "rank-select", "data-rank": profile.rank, "aria-label": `Grade du profil ${profile.name}` },
+        getRankOptions().map((rank) => h("option", { value: rank }, rank)),
+      );
       rankSelect.value = profile.rank;
       rankSelect.addEventListener("change", () => setProfileRank(profile.id, rankSelect.value));
 
-      const renameButton = h("button", { class: "btn-icon", type: "button", "aria-label": `Renommer ${profile.name}` }, "✎");
-      renameButton.addEventListener("click", () => {
+      function applyRename() {
+        if (nameInput.value === profile.name) return;
         const result = renameProfile(profile.id, nameInput.value);
         if (!result.ok) window.alert(result.message);
+      }
+
+      // Enter saves the new name, Escape restores the current one.
+      nameInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") applyRename();
+        if (event.key === "Escape") nameInput.value = profile.name;
       });
 
-      const activateButton = h(
-        "button",
-        { class: isActive ? "btn btn--sm" : "btn btn--primary btn--sm", type: "button", disabled: isActive },
-        isActive ? "Profil actif" : "Activer",
-      );
-      activateButton.addEventListener("click", () => setActiveProfile(profile.id));
+      const renameButton = h("button", { class: "btn-icon", type: "button", "aria-label": `Renommer ${profile.name}`, title: "Renommer" }, "✎");
+      renameButton.addEventListener("click", applyRename);
+
+      const activateButton = isActive ? null : h("button", { class: "btn btn--primary btn--sm", type: "button" }, "Activer");
+      activateButton?.addEventListener("click", () => setActiveProfile(profile.id));
 
       const duplicateButton = h("button", { class: "btn btn--sm", type: "button" }, "Dupliquer");
       duplicateButton.addEventListener("click", () => duplicateProfile(profile.id));
@@ -248,21 +275,40 @@
       );
       deleteButton.addEventListener("click", () => confirmDelete(profile));
 
-      return h("div", { class: isActive ? "card stack card--active" : "card stack" }, [
-        h("div", { class: "row row--between" }, [
-          h("div", { class: "row" }, [nameInput, renameButton]),
-          h("span", { class: "balance-badge__amount" }, formatRyo(profile.balance)),
+      const itemTypes = profile.inventory.length;
+      const transactions = profile.history.length;
+
+      return h("article", { class: isActive ? "profile-card profile-card--active" : "profile-card" }, [
+        isActive ? h("span", { class: "profile-card__stamp" }, "Actif") : null,
+        h("div", { class: "profile-card__header" }, [
+          h("span", { class: "profile-seal profile-seal--lg", "aria-hidden": "true" }, initialOf(profile.name)),
+          h("div", { class: "profile-card__identity" }, [h("div", { class: "profile-card__name-row" }, [nameInput, renameButton]), rankSelect]),
+          h("div", { class: "profile-card__balance" }, [
+            h("span", { class: "profile-card__balance-amount" }, formatRyo(profile.balance)),
+            h("span", { class: "profile-card__balance-label" }, "Solde"),
+          ]),
         ]),
-        h("div", { class: "field" }, [h("label", {}, "Grade"), rankSelect]),
-        h("p", { class: "text-muted" }, `${profile.inventory.length} type(s) d'objet en inventaire · ${profile.history.length} transaction(s)`),
-        h("div", { class: "row" }, [activateButton, duplicateButton, exportButton, deleteButton]),
-        buildHistoryPreview(profile),
+        h("div", { class: "profile-card__stats" }, [
+          h("div", { class: "profile-stat" }, [
+            h("span", { class: "profile-stat__value" }, String(itemTypes)),
+            h("span", { class: "profile-stat__label" }, itemTypes > 1 ? "types d'objets" : "type d'objet"),
+          ]),
+          h("div", { class: "profile-stat" }, [
+            h("span", { class: "profile-stat__value" }, String(transactions)),
+            h("span", { class: "profile-stat__label" }, transactions > 1 ? "transactions" : "transaction"),
+          ]),
+        ]),
+        h("div", { class: "profile-card__actions" }, [activateButton, duplicateButton, exportButton, deleteButton]),
+        h("div", { class: "profile-card__history" }, [h("h3", {}, "Derniers mouvements"), buildHistoryPreview(profile)]),
       ]);
     }
 
     function buildTransactionRow(transaction) {
       return h("div", { class: "transaction-item" }, [
-        h("span", {}, `${transaction.reason} — ${formatDateTime(transaction.timestamp)}`),
+        h("span", { class: "transaction-item__text" }, [
+          h("span", {}, transaction.reason),
+          h("span", { class: "transaction-item__date" }, formatDateTime(transaction.timestamp)),
+        ]),
         h(
           "span",
           { class: `transaction-item__amount transaction-item__amount--${transaction.amount >= 0 ? "positive" : "negative"}` },
@@ -353,7 +399,7 @@
     }
 
     render();
-    return subscribe(() => render());
+    return subscribe(() => rerenderKeepingScroll(render));
   }
 
   App.profilesView = { renderProfilesView };
