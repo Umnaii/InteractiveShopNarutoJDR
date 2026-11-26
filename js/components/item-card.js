@@ -25,6 +25,9 @@
     const badges = [h("span", { class: `badge badge--type-${item.type}` }, typeLabel(item.type))];
     if (item.gmOnly) badges.push(h("span", { class: "badge badge--gm" }, "Conteur"));
     if (!item.purchasable) badges.push(h("span", { class: "badge badge--muted" }, "Hors-commerce"));
+    if (item.variantOf) {
+      badges.push(h("span", { class: "badge badge--muted", title: "Même effet et même prix que l'arme de base : seule l'apparence change." }, "Apparence"));
+    }
 
     const buyButton = item.purchasable
       ? h(
