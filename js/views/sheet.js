@@ -12,7 +12,8 @@
  *
  * Plain script: attaches its API to the shared App namespace as App.sheetView.
  * Depends on App.ninjaRules, App.sheetCalc, App.sheet, App.state, App.profiles, App.economy,
- * App.format, App.dom, App.modal, App.elementWheel, App.diceLauncher, App.profileTransfer.
+ * App.format, App.dom, App.modal, App.elementWheel, App.diceLauncher, App.profileTransfer,
+ * App.sheetPrint.
  */
 
 (function () {
@@ -31,6 +32,7 @@
   const { createElementWheel } = App.elementWheel;
   const { openDiceLauncher, openTechniqueLauncher } = App.diceLauncher;
   const { downloadProfile, openImportPicker, confirmDeleteProfile, openCreateProfileModal } = App.profileTransfer;
+  const { openPrintPreview } = App.sheetPrint;
 
   const TABS = [
     { key: "ninja", label: "Ninja" },
@@ -366,6 +368,7 @@
                 showToast(`Copie créée : « ${result.profile.name} ».`);
               }
             }, { "data-focus-key": "act-dup" }),
+            button("Imprimer", () => openPrintPreview(profile), { "data-focus-key": "act-print", title: "Aperçu et impression sur la fiche papier (A4 paysage)" }),
             button("Exporter", () => downloadProfile(profile), { "data-focus-key": "act-export", title: "Télécharger la fiche en fichier .json" }),
             button("Importer", () => openImportPicker((imported) => setActiveProfile(imported.id)), { "data-focus-key": "act-import", title: "Recharger une fiche .json" }),
             button("Supprimer", () => confirmDeleteProfile(profile), { class: "btn btn--danger", "data-focus-key": "act-delete" }),

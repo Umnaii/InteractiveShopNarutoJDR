@@ -23,6 +23,8 @@
  * @property {{stat: string, dice: number, successes: number, legendary: boolean}} [bonus] - Structured
  *   version of `effect` for bonus items (sections A..D and G), read by the character sheet's dice
  *   launcher. `stat` is a key of App.ninjaRules.STATS. Absent on items with no roll bonus.
+ * @property {string} [variantOf] - Set on a weapon that is only another look of an existing one
+ *   (roleplay): the id of that weapon, whose rarity, price and bonus it copies.
  * @property {boolean} purchasable - False for items that can't be bought (legendary weapons).
  * @property {boolean} gmOnly - True for items only the GM should see.
  */
@@ -77,21 +79,83 @@
     };
   }
 
+  /**
+   * Other looks for a combat weapon, for roleplay only: each variant copies its base
+   * weapon's rarity, price and bonus exactly. Only the name (and the wording of the effect)
+   * changes, so the rules and the rank cap are untouched.
+   * @param {Item} base - The weapon whose stats are reused.
+   * @param {[string, string][]} variants - [id, name] pairs.
+   * @returns {Item[]} The base weapon followed by its variants.
+   */
+  function withVariants(base, variants) {
+    const effect = base.effect.replace("avec la lame", "avec cette arme");
+    return [
+      base,
+      ...variants.map(([id, name]) => ({
+        ...base,
+        id,
+        name,
+        effect: `${effect} Même effet et même prix que « ${base.name} » : seule l'apparence change.`,
+        bonus: { ...base.bonus },
+        variantOf: base.id,
+      })),
+    ];
+  }
+
   /** @type {Item[]} */
   const ITEMS = [
-    // A. Combat
-    equipment("wakizashi-acier", "Wakizashi d'acier", "A", 2, 15000, "15 000",
-      "+1 dé en Combat avec la lame.", 1, 0),
-    equipment("gantelets-renforces", "Gantelets renforcés", "A", 2, 25000, "25 000",
-      "+1 dé en Combat à mains nues.", 1, 0),
-    equipment("katana-forgeron-renomme", "Katana de forgeron renommé", "A", 3, 90000, "90 000",
-      "+2 dés en Combat avec la lame.", 2, 0),
+    // A. Combat (each weapon is followed by its other looks, same stats)
+    ...withVariants(
+      equipment("wakizashi-acier", "Wakizashi d'acier", "A", 2, 15000, "15 000",
+        "+1 dé en Combat avec la lame.", 1, 0),
+      [
+        ["tanto-acier", "Tantō d'acier"],
+        ["baton-combat", "Bâton de combat (bō)"],
+        ["tonfas-chene", "Paire de tonfas en chêne"],
+        ["kama-acier", "Kama (faucille de combat)"],
+        ["nunchaku-ferres", "Nunchaku ferrés"],
+        ["lance-yari", "Lance (yari)"],
+        ["eventail-fer", "Éventail de fer (tessen)"],
+        ["chaine-lestee", "Chaîne lestée (kusari-fundo)"],
+      ],
+    ),
+    ...withVariants(
+      equipment("gantelets-renforces", "Gantelets renforcés", "A", 2, 25000, "25 000",
+        "+1 dé en Combat à mains nues.", 1, 0),
+      [
+        ["griffes-combat", "Griffes de combat (tekkō-kagi)"],
+        ["poings-fer", "Poings de fer"],
+        ["bandages-lestes", "Bandages lestés"],
+      ],
+    ),
+    ...withVariants(
+      equipment("katana-forgeron-renomme", "Katana de forgeron renommé", "A", 3, 90000, "90 000",
+        "+2 dés en Combat avec la lame.", 2, 0),
+      [
+        ["kodachi-jumeaux", "Kodachi jumeaux"],
+        ["nodachi", "Nodachi (grand sabre)"],
+        ["naginata", "Naginata"],
+        ["kusarigama", "Kusarigama (faucille à chaîne)"],
+        ["baton-ferre", "Bō ferré de forgeron"],
+        ["eventail-guerre", "Grand éventail de guerre"],
+        ["sai-jumeaux", "Paire de saï"],
+      ],
+    ),
     equipment("plastron-chakra-acier", "Plastron en chakra-acier", "A", 3, 140000, "140 000",
       "+2 dés en Combat.", 2, 0),
     equipment("lames-conductrices-chakra", "Lames conductrices de chakra", "A", 4, 350000, "350 000",
       "+2 dés et +1 succès en Combat ; le chakra prolonge la lame, avec n'importe quel art ninja.", 2, 1),
-    equipment("sabre-maitre-armes", "Sabre de maître d'armes", "A", 4, 500000, "500 000",
-      "+2 dés et +1 succès en Combat avec la lame.", 2, 1),
+    ...withVariants(
+      equipment("sabre-maitre-armes", "Sabre de maître d'armes", "A", 4, 500000, "500 000",
+        "+2 dés et +1 succès en Combat avec la lame.", 2, 1),
+      [
+        ["zanbato-maitre", "Zanbatō de maître d'armes"],
+        ["baton-maitre", "Bō de maître d'armes"],
+        ["lance-maitre", "Lance de maître d'armes"],
+        ["kusarigama-maitre", "Kusarigama de maître d'armes"],
+        ["eventail-maitre", "Éventail d'acier de maître d'armes"],
+      ],
+    ),
 
     // B. Infiltration
     equipment("tenue-camouflage", "Tenue de camouflage", "B", 2, 10000, "10 000",

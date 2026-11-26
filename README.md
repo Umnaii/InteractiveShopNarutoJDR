@@ -21,7 +21,10 @@ Pages, dans l'ordre de la navigation : **Fiche** (page d'accueil), **Inventaire*
 - **Boutique** : parcourir les 10 catégories du catalogue (A à J), filtrer par catégorie,
   rareté (sélection multiple), type ou nom, trier par prix croissant/décroissant,
   afficher/masquer les objets hors-commerce, et un « mode Conteur » pour révéler les objets
-  réservés (substances restreintes, objets d'intrigue).
+  réservés (substances restreintes, objets d'intrigue). En Combat, chaque arme existe aussi
+  sous d'autres **apparences** pour le roleplay (bâton, tonfas, kama, naginata, kusarigama,
+  griffes, zanbatō…), badge « Apparence » : même prix, même rareté et même bonus que l'arme
+  dont elles reprennent les stats.
 - **Panier** : ajoutez des objets (avec quantité) avant de les acheter pour voir le coût
   total, ajustez les quantités ou retirez une ligne, puis validez l'achat en une seule
   transaction pour le profil actif.
