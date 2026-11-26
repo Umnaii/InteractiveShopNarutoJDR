@@ -11,6 +11,8 @@ STRUCTURE.md                 This file
 README.md                    What it is, how to run it, how data persists, how to reset it
 
 fonts/                       Bundled title fonts (Dela Gothic One, M PLUS Rounded 1c) + their OFL license texts
+img/
+  fiche-ninja.jpg            References/ShinobiFichePerso.pdf rendered at 300 dpi (3508 × 2480): background of the printed sheet
 
 css/
   fonts.css                   @font-face declarations for the bundled fonts in fonts/ (loaded first)
@@ -55,6 +57,7 @@ js/
     profile-transfer.js          Shared profile actions: download as .json, import (with replace/duplicate dialog), create dialog, delete confirmation -> App.profileTransfer
     element-wheel.js             The paper sheet's element wheel as inline SVG (display only; lit/unlocked natures) -> App.elementWheel
     dice-launcher.js             d10 launcher modal (pool, spontaneous success, trait rerolls, aspects, quality, history) + "Lancer la technique" step -> App.diceLauncher
+    sheet-print.js               Print preview: the paper sheet (img/fiche-ninja.jpg) with the profile's values placed in its blanks; prints one A4 landscape page -> App.sheetPrint
   views/
     shop.js                      Route "/shop" — browse + filter + sort the catalogue, quick-buy or add to cart, rarity legend at the bottom -> App.shopView
     item-detail.js               Route "/item/:id" — full item info, buy or add to cart with quantity -> App.itemDetailView
@@ -128,6 +131,7 @@ data/items.js, data/rarities.js, data/missions.js, data/ninja-rules.js   (no dep
   -> js/components/profile-transfer.js                      (needs App.dom, App.modal, App.profiles, App.format)
   -> js/components/element-wheel.js                         (needs App.ninjaRules, App.sheetCalc)
   -> js/components/dice-launcher.js                         (needs App.ninjaRules, App.sheetCalc, App.sheet, App.profiles, App.dom, App.modal, App.format)
+  -> js/components/sheet-print.js                           (needs App.ninjaRules, App.sheetCalc, App.economy, App.format, App.dom)
   -> js/views/*.js                                            (each needs whichever of the above it reads — see its header comment; js/views/cart.js needs App.state, App.economy, App.format, App.dom, App.poof)
   -> js/router.js                                              (no dependencies)
   -> js/main.js                                                 (needs everything; boots the app on DOMContentLoaded)
@@ -391,6 +395,16 @@ exporting and importing a sheet are the existing profile operations.
 - **Re-rendering**: text fields save as you type (debounced) *without* rebuilding the view, so
   a phone keyboard never closes; other changes rebuild with `rerenderKeepingFocus`, and wait
   for the pointer to be released so a click on a button is never swallowed by a rebuild.
+- **Printing** (`js/components/sheet-print.js`, "Imprimer" in the sheet header): the page is the
+  PDF itself as an image (`img/fiche-ninja.jpg`, an `<img>` so it prints even with "background
+  graphics" off), with the values laid over it. Every position is a pixel of that 3508 × 2480
+  image, measured on the PDF, turned into percentages; font sizes are in `cqw` (the page is a
+  size container), so the on-screen preview and the A4 print are the same picture. Too-long
+  texts shrink to fit (`fitText`, down to half size, then "…"). Mastery dots and circled
+  natures are an SVG layer with the same 3508 × 2480 viewBox. While the preview is open, an
+  `@page { size: A4 landscape; margin: 0 }` rule is added and `@media print` hides everything
+  else. If the PDF is ever redrawn, re-render it at 300 dpi and re-measure the constants at
+  the top of the file.
 
 ## 7. Conventions
 

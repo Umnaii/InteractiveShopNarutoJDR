@@ -2182,3 +2182,187 @@ button.budget-chip:hover {
     transition: none;
   }
 }
+
+/* --- Print preview: the paper sheet with the profile's values (js/components/sheet-print.js) --- */
+
+.print-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: #1c2130;
+}
+
+body.is-print-preview {
+  overflow: hidden;
+}
+
+.print-preview__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-paper, #fffaf0);
+  box-shadow: var(--shadow-md);
+}
+
+.print-preview__title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.print-preview__title strong {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+}
+
+.print-preview__title span {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.print-preview__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.print-preview__actions .btn {
+  min-height: 44px;
+}
+
+.print-preview__stage {
+  flex: 1;
+  overflow: auto;
+  padding: 1rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.print-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 1400px;
+  aspect-ratio: 297 / 210;
+  margin: 0 auto;
+  overflow: hidden;
+  container-type: inline-size;
+  background: #fff;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  color: #1d2f5c;
+  cursor: zoom-in;
+}
+
+/* Tap / click the page to see it at a readable size (the stage then scrolls both ways). */
+.print-preview__stage.is-zoomed .print-sheet {
+  width: 1600px;
+  max-width: none;
+  cursor: zoom-out;
+}
+
+.print-sheet {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.print-sheet__paper,
+.ps-marks {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.ps-mark {
+  fill: #1d2f5c;
+  opacity: 0.85;
+}
+
+.ps-nature {
+  fill: rgba(255, 200, 0, 0.1);
+  stroke: #d99a00;
+  stroke-width: 8;
+}
+
+.ps-text {
+  position: absolute;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-heading);
+  font-weight: 700;
+}
+
+.ps-text--multi {
+  white-space: normal;
+  text-overflow: clip;
+}
+
+.ps-text--value {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.ps-text--tech {
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+@media (max-width: 600px) {
+  .print-preview__bar {
+    padding: 0.6rem 1rem;
+  }
+
+  .print-preview__title span {
+    display: none;
+  }
+
+  .print-preview__stage {
+    padding: 1rem;
+  }
+}
+
+@media print {
+  body.is-print-preview > *:not(.print-preview) {
+    display: none !important;
+  }
+
+  html,
+  body.is-print-preview {
+    margin: 0;
+    padding: 0;
+    background: #fff !important;
+    overflow: visible;
+  }
+
+  .print-preview {
+    position: static;
+    display: block;
+    background: none;
+  }
+
+  .print-preview__bar {
+    display: none;
+  }
+
+  .print-preview__stage {
+    padding: 0;
+    overflow: visible;
+  }
+
+  .print-preview .print-preview__stage .print-sheet {
+    /* A hair under A4 so the browser never spills onto a second, blank page. */
+    width: 296.8mm;
+    height: 209.8mm;
+    max-width: none;
+    aspect-ratio: auto;
+    box-shadow: none;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
