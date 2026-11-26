@@ -55,6 +55,9 @@ Pages, dans l'ordre de la navigation : **Fiche** (page d'accueil), **Inventaire*
   6 onglets (Ninja, Techniques, Éléments, Aspects, Sac, Progression) et un résumé toujours
   visible : énergie vitale, chakra, actions du tour, initiative, bourse, PX / PA et bouton de
   dés. Sur PC, ce résumé est une colonne fixe à gauche ; sur téléphone, un bloc compact au-dessus des onglets.
+  Le bouton **Imprimer** ouvre un aperçu de la fiche papier `ShinobiFichePerso.pdf` remplie
+  avec les valeurs du personnage, puis l'imprime sur une page A4 paysage (ou en PDF via
+  « Enregistrer au format PDF » du navigateur).
 - **Export / import de profil** : téléchargez un profil (fiche de personnage comprise) en
   fichier `.json` depuis la page Profils ou la Fiche, et rechargez-le plus tard sur un autre
   appareil ou navigateur (voir ci-dessous).
