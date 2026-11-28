@@ -19,6 +19,7 @@
   const { renderProfilesView } = App.profilesView;
   const { renderCartView } = App.cartView;
   const { renderSheetView } = App.sheetView;
+  const { renderEnemiesView } = App.enemiesView;
   const { h, clearElement } = App.dom;
 
   /** Page order: the character sheet first (also the home page, see boot()). */
@@ -28,6 +29,7 @@
     { path: "/shop", label: "Boutique" },
     { path: "/cart", label: "Panier" },
     { path: "/missions", label: "Missions" },
+    { path: "/enemies", label: "Ennemis" },
     { path: "/profiles", label: "Profils" },
   ];
 
@@ -93,6 +95,7 @@
     });
     registerRoute("/inventory", () => renderInventoryView(view()));
     registerRoute("/missions", () => renderMissionsView(view()));
+    registerRoute("/enemies", () => renderEnemiesView(view()));
     registerRoute("/profiles", () => renderProfilesView(view()));
     registerRoute("/sheet", () => renderSheetView(view()));
 
