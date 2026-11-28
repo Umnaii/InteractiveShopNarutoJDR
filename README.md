@@ -12,7 +12,7 @@ stocké dans le `localStorage` du navigateur.
 ## Fonctionnalités
 
 Pages, dans l'ordre de la navigation : **Fiche** (page d'accueil), **Inventaire**,
-**Boutique** (avec la légende des raretés en bas), **Panier**, **Missions**, **Profils**.
+**Boutique** (avec la légende des raretés en bas), **Panier**, **Missions**, **Ennemis**, **Profils**.
 
 - **Profils multiples** : créer, renommer, dupliquer, supprimer des personnages (Genin /
   Chûnin / Jônin), chacun avec son solde de Ryo, son inventaire et son historique de
@@ -42,6 +42,13 @@ Pages, dans l'ordre de la navigation : **Fiche** (page d'accueil), **Inventaire*
   d'équipe en option), crédit en un clic vers un ou plusieurs profils, un formulaire
   d'ajustement manuel (décision du conteur), et un **journal des missions** (réservé au
   conteur, non visible des joueurs) téléchargeable en CSV.
+- **Ennemis** (pour le conteur, règles p. 108-109) : un **jet libre** (n'importe quel nombre de
+  D10 et de succès automatiques), et les PNJ de la séance sans fiche détaillée : **seconds
+  couteaux** (nom, D10, succès auto, énergie vitale ; le tableau « Valeur d'un PNJ », de Genin
+  lambda à Jônin très puissant, ne fait que proposer des valeurs modifiables) et **groupes de
+  figurants** (1 point d'énergie vitale par figurant, 1 D10 par figurant qui agit). Chaque
+  carte lance ses dés, affiche le total, la qualité et l'aide apportée à un protagoniste ;
+  « Dupliquer » pour plusieurs ennemis identiques, « Retirer tous les ennemis » en fin de combat.
 - **Fiche de ninja** (onglet « Fiche ») : la fiche papier `References/ShinobiFichePerso.pdf`
   rendue interactive pour le profil actif, avec les règles du livre (création p. 36-58,
   système de jeu p. 105-115). Mode **création** avec les budgets du grade (points restants,
@@ -87,7 +94,7 @@ données à gérer : uploadez le dossier, c'est fini.
 ## Persistance des données
 
 Tout est stocké dans le `localStorage` du navigateur, sous des clés préfixées
-`shinobi-shop:v1:...` (profils, profil actif, réglages d'affichage, journal des missions).
+`shinobi-shop:v1:...` (profils, profil actif, réglages d'affichage, journal des missions, ennemis du conteur).
 Rien n'est envoyé sur le réseau — il n'y a ni backend ni base de données. Les données
 restent donc propres à un navigateur et un appareil : si vous jouez depuis plusieurs
 appareils, chacun aura son propre état local.

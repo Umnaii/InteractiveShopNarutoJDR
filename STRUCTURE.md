@@ -33,7 +33,7 @@ data/
 References/                   Spec ("Cahier des charges — Fiche de ninja interactive.md"), paper sheet and rulebook PDFs (not loaded by the app)
 
 js/
-  main.js                     Entry point: boots state, builds header/nav (order: Fiche, Inventaire, Boutique, Panier, Missions, Profils),
+  main.js                     Entry point: boots state, builds header/nav (order: Fiche, Inventaire, Boutique, Panier, Missions, Ennemis, Profils),
                               mounts the profile switcher, registers routes, sets "/sheet" as the home page, starts the router
   router.js                   Tiny hash router: registerRoute(pattern, handler), navigate(path), initRouter() -> App.router
   state.js                    In-memory app state singleton + subscribe/notify -> App.state. The ONLY module allowed to call App.storage. Also owns the session-only cart (not persisted)
@@ -44,6 +44,8 @@ js/
                               PX/PA costs, dice/successes/quality, natures' prerequisites, equipment caps, initiative piles -> App.sheetCalc
   sheet.js                    ALL character-sheet mutations (stats, arts, elements, techniques, aspects, gauges, PX/PA ledger + undo, natures,
                               hand-added items, roll history, initiative) -> App.sheet. The sheet's equivalent of economy.js
+  enemies.js                  The GM's enemies (PNJ, p. 108-109): create/rename/duplicate/remove, dice/auto/énergie vitale, normalizeEnemy(),
+                              rollPool() (any number of D10 + automatic successes), help bonus, status -> App.enemies. Mutates state through App.state
   format.js                   Pure formatting helpers: Ryo strings, star glyphs, French labels, dates, CSV field escaping, profile initials (seals) -> App.format
   dom.js                      Tiny `h(tag, attrs, children)` element builder + clearElement() + rerenderKeepingScroll() (views wrap their state-change re-render in it so buying/consuming doesn't jump to the top)
                               + rerenderKeepingFocus() (same, and puts focus/caret back on the control with the same `data-focus-key`) -> App.dom, shared by components/views
@@ -66,6 +68,8 @@ js/
                                  "/rarities" still exists and opens the shop scrolled to it -> App.raritiesView (loaded before shop.js)
     inventory.js                 Route "/inventory" — active profile's owned items, consume/resell/undo purchase -> App.inventoryView
     missions.js                  Route "/missions" — mission payout calculator, manual adjustment form, GM-only mission journal (CSV export) -> App.missionsView
+    enemies.js                   Route "/enemies" — GM page: free roll, new enemy form (second couteau with a "Valeur d'un PNJ" suggestion, or a group
+                                 of figurants), one card per enemy (D10, auto, énergie vitale, roll, duplicate, remove) -> App.enemiesView
     profiles.js                  Route "/profiles" — profile CRUD UI + transaction history preview/full history/CSV export, "Fiche" button per card -> App.profilesView
     sheet.js                     Route "/sheet" — the active profile's character sheet: 6 panels behind tabs (Ninja, Techniques, Éléments, Aspects,
                                  Sac, Progression) + a summary (gauges, actions, initiative dialog, purse, PX/PA, dice): sticky sidebar at ≥ 1100 px,
@@ -122,6 +126,7 @@ data/items.js, data/rarities.js, data/missions.js, data/ninja-rules.js   (no dep
   -> js/profiles.js                                      (needs App.state, App.format, App.sheetCalc)
   -> js/economy.js                                        (needs App.items, App.missions, App.state, App.profiles)
   -> js/sheet.js                                          (needs App.ninjaRules, App.sheetCalc, App.state, App.profiles)
+  -> js/enemies.js                                        (needs App.ninjaRules, App.sheetCalc, App.state)
   -> js/components/star-rating.js                          (needs App.dom, App.format)
   -> js/components/item-card.js                             (needs App.dom, App.starRating, App.format)
   -> js/components/modal.js                                 (needs App.dom)
@@ -290,6 +295,19 @@ localStorage  <-->  App.storage  <-->  App.state  <-->  App.profiles / App.econo
  * @property {string|null} leaderName
  */
 
+// runtime data, persisted via App.state/App.storage — the GM's enemies (sanitized by
+// App.enemies.normalizeEnemy() on every read)
+/**
+ * @typedef {Object} Enemy
+ * @property {string} id
+ * @property {string} name
+ * @property {"second"|"figurants"} kind   // second couteau, or a group of figurants (1 PV per figurant)
+ * @property {string} tier               // NPC_TIERS key the dice were suggested from, "" = free (always "" for figurants)
+ * @property {number} dice               // 0..99 D10
+ * @property {number} auto               // −20..99 automatic successes
+ * @property { {current, max: number}} vitality  // figurants: still standing / group size
+ */
+
 // runtime data, held in js/state.js only — deliberately NOT persisted to localStorage
 // (see section 5). A staging area for a purchase in progress, not durable data.
 /**
@@ -310,6 +328,7 @@ shinobi-shop:v1:profiles             -> JSON array of Profile
 shinobi-shop:v1:active-profile-id    -> JSON string|null
 shinobi-shop:v1:settings             -> JSON { gmMode: boolean, showHorsCommerce: boolean }
 shinobi-shop:v1:mission-log          -> JSON array of MissionLogEntry (GM-only, newest first)
+shinobi-shop:v1:enemies              -> JSON array of Enemy (GM-only, newest first)
 ```
 
 **Not persisted here:** the cart (see the `CartLine` typedef in section 4) lives only in

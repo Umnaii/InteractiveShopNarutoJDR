@@ -1,7 +1,7 @@
 /**
  * Static rules of the character sheet ("fiche de ninja"), taken from the rulebook
  * "References/ShinobiNarutoJdr.pdf": creation p. 36-55, natures p. 50-58,
- * game system p. 105-115. Plain data only — every calculation lives in js/sheet-calc.js.
+ * game system p. 105-115, GM characters (PNJ) p. 108-109. Plain data only — every calculation lives in js/sheet-calc.js.
  * Plain script: attaches its data to the shared App namespace as App.ninjaRules.
  * No dependencies.
  */
@@ -227,6 +227,36 @@
   /** How many dice rolls the sheet remembers. */
   const ROLL_HISTORY_SIZE = 10;
 
+  /**
+   * GM characters (p. 108-109). "second": a "second couteau" (a henchman, a companion...)
+   * summed up by a dice pool and automatic successes, plus énergie vitale. "figurants": a
+   * group of ordinary people handled as one entity, 1 point of énergie vitale per figurant.
+   */
+  const NPC_KINDS = [
+    { key: "second", label: "Second couteau" },
+    { key: "figurants", label: "Groupe de figurants" },
+  ];
+
+  /**
+   * "Valeur d'un PNJ" table (p. 108): usual dice and automatic successes for an average
+   * test. Only a starting point, the GM changes anything. `max: null` = "ou +".
+   * `grade` gives the suggested énergie vitale (the grade's starting value).
+   */
+  const NPC_TIERS = [
+    { key: "genin-lambda", label: "Genin lambda", grade: "Genin", dice: { min: 3, max: 8 }, auto: { min: -1, max: 2 } },
+    { key: "genin-puissant", label: "Genin puissant", grade: "Genin", dice: { min: 6, max: 10 }, auto: { min: 0, max: 3 } },
+    { key: "chunin-lambda", label: "Chûnin lambda", grade: "Chûnin", dice: { min: 8, max: 12 }, auto: { min: 3, max: 5 } },
+    { key: "chunin-moyen", label: "Chûnin moyen", grade: "Chûnin", dice: { min: 10, max: 15 }, auto: { min: 4, max: 7 } },
+    { key: "chunin-puissant", label: "Chûnin puissant", grade: "Chûnin", dice: { min: 10, max: 18 }, auto: { min: 5, max: 10 } },
+    { key: "jonin-lambda", label: "Jônin lambda", grade: "Jônin", dice: { min: 12, max: 15 }, auto: { min: 5, max: 8 } },
+    { key: "jonin-puissant", label: "Jônin puissant", grade: "Jônin", dice: { min: 15, max: 25 }, auto: { min: 8, max: 10 } },
+    { key: "jonin-tres-puissant", label: "Jônin très puissant", grade: "Jônin", dice: { min: 25, max: null }, auto: { min: 10, max: null } },
+  ];
+  /** A group of figurants: 1 D10 per individual acting, "dans la limite du bon sens" (p. 109). */
+  const FIGURANTS_DEFAULT_COUNT = 10;
+  /** A specialist figurant can have up to 5D10 in their domain (p. 109). */
+  const FIGURANT_SPECIALIST_MAX_DICE = 5;
+
   App.ninjaRules = {
     STATS,
     STAT_MIN,
@@ -256,5 +286,9 @@
     PROGRESSION,
     LEGENDARY_BONUS,
     ROLL_HISTORY_SIZE,
+    NPC_KINDS,
+    NPC_TIERS,
+    FIGURANTS_DEFAULT_COUNT,
+    FIGURANT_SPECIALIST_MAX_DICE,
   };
 })();

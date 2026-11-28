@@ -12,10 +12,10 @@
   "use strict";
   window.App = window.App || {};
 
-  const { loadAppState, saveProfiles, saveActiveProfileId, saveSettings, saveMissionLog, resetAllData, getDefaultAppState, isStorageWritable } =
+  const { loadAppState, saveProfiles, saveActiveProfileId, saveSettings, saveMissionLog, saveEnemies, resetAllData, getDefaultAppState, isStorageWritable } =
     App.storage;
 
-  /** @type {{profiles: Array, activeProfileId: string|null, settings: {gmMode: boolean, showHorsCommerce: boolean}, missionLog: Array}} */
+  /** @type {{profiles: Array, activeProfileId: string|null, settings: {gmMode: boolean, showHorsCommerce: boolean}, missionLog: Array, enemies: Array}} */
   let state = getDefaultAppState();
 
   /**
@@ -82,6 +82,11 @@
     return state.missionLog;
   }
 
+  /** @returns {Array} The GM's enemies (raw; read them through App.enemies.getEnemies()). */
+  function getEnemies() {
+    return state.enemies;
+  }
+
   /**
    * Replace the profiles array, persist it, and notify subscribers.
    * @param {Array} profiles
@@ -123,6 +128,17 @@
   function setMissionLog(missionLog) {
     state = { ...state, missionLog };
     saveMissionLog(missionLog);
+    notify();
+  }
+
+  /**
+   * Replace the GM's enemies, persist them, and notify subscribers.
+   * @param {Array} enemies
+   * @returns {void}
+   */
+  function setEnemies(enemies) {
+    state = { ...state, enemies };
+    saveEnemies(enemies);
     notify();
   }
 
@@ -206,10 +222,12 @@
     getActiveProfile,
     getSettings,
     getMissionLog,
+    getEnemies,
     setProfiles,
     setActiveProfileId,
     setSettings,
     setMissionLog,
+    setEnemies,
     resetState,
     isPersistent,
     getCart,
