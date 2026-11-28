@@ -45,7 +45,8 @@ js/
   sheet.js                    ALL character-sheet mutations (stats, arts, elements, techniques, aspects, gauges, PX/PA ledger + undo, natures,
                               hand-added items, roll history, initiative) -> App.sheet. The sheet's equivalent of economy.js
   enemies.js                  The GM's enemies (PNJ, p. 108-109): create/rename/duplicate/remove, dice/auto/énergie vitale, normalizeEnemy(),
-                              rollPool() (any number of D10 + automatic successes), help bonus, status -> App.enemies. Mutates state through App.state
+                              rollPool() (any number of D10 + automatic successes), help bonus, status; named groups (create/rename/delete,
+                              file an enemy) and a group's .json export/import -> App.enemies. Mutates state through App.state
   format.js                   Pure formatting helpers: Ryo strings, star glyphs, French labels, dates, CSV field escaping, profile initials (seals) -> App.format
   dom.js                      Tiny `h(tag, attrs, children)` element builder + clearElement() + rerenderKeepingScroll() (views wrap their state-change re-render in it so buying/consuming doesn't jump to the top)
                               + rerenderKeepingFocus() (same, and puts focus/caret back on the control with the same `data-focus-key`) -> App.dom, shared by components/views
@@ -69,7 +70,9 @@ js/
     inventory.js                 Route "/inventory" — active profile's owned items, consume/resell/undo purchase -> App.inventoryView
     missions.js                  Route "/missions" — mission payout calculator, manual adjustment form, GM-only mission journal (CSV export) -> App.missionsView
     enemies.js                   Route "/enemies" — GM page: free roll, new enemy form (second couteau with a "Valeur d'un PNJ" suggestion, or a group
-                                 of figurants), one card per enemy (D10, auto, énergie vitale, roll, duplicate, remove) -> App.enemiesView
+                                 of figurants), one card per enemy (D10, auto, énergie vitale, roll, duplicate, remove, "Ranger dans"),
+                                 groups as collapsible blocks (closed by default: filed enemies only show once opened) with
+                                 rename / export / delete, "Importer un groupe", then the unfiled enemies -> App.enemiesView
     profiles.js                  Route "/profiles" — profile CRUD UI + transaction history preview/full history/CSV export, "Fiche" button per card -> App.profilesView
     sheet.js                     Route "/sheet" — the active profile's character sheet: 6 panels behind tabs (Ninja, Techniques, Éléments, Aspects,
                                  Sac, Progression) + a summary (gauges, actions, initiative dialog, purse, PX/PA, dice): sticky sidebar at ≥ 1100 px,
@@ -306,7 +309,16 @@ localStorage  <-->  App.storage  <-->  App.state  <-->  App.profiles / App.econo
  * @property {number} dice               // 0..99 D10
  * @property {number} auto               // −20..99 automatic successes
  * @property { {current, max: number}} vitality  // figurants: still standing / group size
+ * @property {string} groupId            // EnemyGroup id, "" = not filed (also when that group no longer exists)
  */
+/**
+ * @typedef {Object} EnemyGroup         // a named folder to sort enemies and export them together
+ * @property {string} id
+ * @property {string} name               // unique among groups ("Nom (2)" when taken)
+ */
+// Group export file (App.enemies.exportGroup / parseGroupExport / importGroup):
+// { format: "shinobi-enemy-group", version: 1, exportedAt, group: { name }, enemies: Enemy[] without id/groupId }
+// Import always creates a NEW group with fresh ids; every enemy goes through normalizeEnemy().
 
 // runtime data, held in js/state.js only — deliberately NOT persisted to localStorage
 // (see section 5). A staging area for a purchase in progress, not durable data.
@@ -329,6 +341,7 @@ shinobi-shop:v1:active-profile-id    -> JSON string|null
 shinobi-shop:v1:settings             -> JSON { gmMode: boolean, showHorsCommerce: boolean }
 shinobi-shop:v1:mission-log          -> JSON array of MissionLogEntry (GM-only, newest first)
 shinobi-shop:v1:enemies              -> JSON array of Enemy (GM-only, newest first)
+shinobi-shop:v1:enemy-groups         -> JSON array of EnemyGroup (GM-only, creation order)
 ```
 
 **Not persisted here:** the cart (see the `CartLine` typedef in section 4) lives only in

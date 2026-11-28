@@ -98,6 +98,22 @@
    * @returns {void}
    */
   function openImportPicker(onImported) {
+    pickJsonFile((text) => {
+      const parsed = parseProfileExport(text);
+      if (!parsed.ok) {
+        window.alert(parsed.message);
+        return;
+      }
+      attemptImport(parsed.profile, undefined, onImported);
+    });
+  }
+
+  /**
+   * Let the user choose a .json file and hand over its text (nothing happens on cancel).
+   * @param {(text: string) => void} onText
+   * @returns {void}
+   */
+  function pickJsonFile(onText) {
     const fileInput = h("input", { type: "file", accept: "application/json,.json", class: "visually-hidden", "aria-hidden": "true", tabindex: "-1" });
     // Kept in the document while the picker is open: some mobile browsers ignore a
     // click() on a detached file input.
@@ -107,12 +123,7 @@
       const file = fileInput.files[0];
       fileInput.remove();
       if (!file) return;
-      const parsed = parseProfileExport(await file.text());
-      if (!parsed.ok) {
-        window.alert(parsed.message);
-        return;
-      }
-      attemptImport(parsed.profile, undefined, onImported);
+      onText(await file.text());
     });
     fileInput.click();
   }
@@ -185,5 +196,5 @@
     });
   }
 
-  App.profileTransfer = { slugify, downloadFile, downloadProfile, openImportPicker, confirmDeleteProfile, openCreateProfileModal };
+  App.profileTransfer = { slugify, downloadFile, pickJsonFile, downloadProfile, openImportPicker, confirmDeleteProfile, openCreateProfileModal };
 })();

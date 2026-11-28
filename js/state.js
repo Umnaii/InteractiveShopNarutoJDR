@@ -12,10 +12,10 @@
   "use strict";
   window.App = window.App || {};
 
-  const { loadAppState, saveProfiles, saveActiveProfileId, saveSettings, saveMissionLog, saveEnemies, resetAllData, getDefaultAppState, isStorageWritable } =
+  const { loadAppState, saveProfiles, saveActiveProfileId, saveSettings, saveMissionLog, saveEnemies, saveEnemyGroups, resetAllData, getDefaultAppState, isStorageWritable } =
     App.storage;
 
-  /** @type {{profiles: Array, activeProfileId: string|null, settings: {gmMode: boolean, showHorsCommerce: boolean}, missionLog: Array, enemies: Array}} */
+  /** @type {{profiles: Array, activeProfileId: string|null, settings: {gmMode: boolean, showHorsCommerce: boolean}, missionLog: Array, enemies: Array, enemyGroups: Array}} */
   let state = getDefaultAppState();
 
   /**
@@ -87,6 +87,11 @@
     return state.enemies;
   }
 
+  /** @returns {Array} The GM's enemy groups (raw; read them through App.enemies.getGroups()). */
+  function getEnemyGroups() {
+    return state.enemyGroups;
+  }
+
   /**
    * Replace the profiles array, persist it, and notify subscribers.
    * @param {Array} profiles
@@ -139,6 +144,20 @@
   function setEnemies(enemies) {
     state = { ...state, enemies };
     saveEnemies(enemies);
+    notify();
+  }
+
+  /**
+   * Replace the enemies and their groups together (one notification), e.g. when a group
+   * is deleted with its enemies or imported from a file.
+   * @param {Array} enemies
+   * @param {Array} enemyGroups
+   * @returns {void}
+   */
+  function setEnemyData(enemies, enemyGroups) {
+    state = { ...state, enemies, enemyGroups };
+    saveEnemies(enemies);
+    saveEnemyGroups(enemyGroups);
     notify();
   }
 
@@ -223,11 +242,13 @@
     getSettings,
     getMissionLog,
     getEnemies,
+    getEnemyGroups,
     setProfiles,
     setActiveProfileId,
     setSettings,
     setMissionLog,
     setEnemies,
+    setEnemyData,
     resetState,
     isPersistent,
     getCart,

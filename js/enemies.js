@@ -2,7 +2,9 @@
  * The GM's enemies (PNJ, rules p. 108-109): "seconds couteaux" and groups of figurants,
  * kept deliberately simple: a name, a dice pool, automatic successes and énergie vitale.
  * The "Valeur d'un PNJ" table (App.ninjaRules.NPC_TIERS) only pre-fills suggestions; the
- * GM can set any value afterwards. The only module that changes App.state's enemies.
+ * GM can set any value afterwards. Enemies can be filed in named groups (folders), and a
+ * group can be exported to / imported from a .json file in one go.
+ * The only module that changes App.state's enemies and enemy groups.
  *
  * Plain script: attaches its API to the shared App namespace as App.enemies.
  * Depends on App.ninjaRules, App.sheetCalc, App.state.
@@ -14,7 +16,11 @@
 
   const R = App.ninjaRules;
   const C = App.sheetCalc;
-  const { getEnemies: getRawEnemies, setEnemies } = App.state;
+  const { getEnemies: getRawEnemies, getEnemyGroups: getRawGroups, setEnemies, setEnemyData } = App.state;
+
+  /** Marks a file made by exportGroup(), so importGroup() can refuse anything else. */
+  const EXPORT_FORMAT = "shinobi-enemy-group";
+  const EXPORT_VERSION = 1;
 
   const NAME_MAX_LENGTH = 60;
   const DICE_MAX = 99;
@@ -68,7 +74,8 @@
   }
 
   /**
-   * Sanitize one stored enemy (idempotent).
+   * Sanitize one stored enemy (idempotent). `groupId` is kept as is here; getEnemies()
+   * drops it when the group no longer exists.
    * @param {*} raw
    * @returns {object|null}
    */
@@ -84,12 +91,38 @@
       dice: clampInt(raw.dice, 0, DICE_MAX, 0),
       auto: clampInt(raw.auto, AUTO_MIN, AUTO_MAX, 0),
       vitality: { current: clampInt(raw.vitality?.current, 0, max, max), max },
+      groupId: typeof raw.groupId === "string" ? raw.groupId : "",
     };
   }
 
-  /** @returns {object[]} Every enemy, sanitized, in display order (newest first). */
+  /**
+   * Sanitize one stored group (idempotent).
+   * @param {*} raw
+   * @returns {{id: string, name: string}|null}
+   */
+  function normalizeGroup(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    return {
+      id: typeof raw.id === "string" && raw.id ? raw.id : generateEnemyId().replace("enemy-", "group-"),
+      name: typeof raw.name === "string" && raw.name.trim() ? raw.name.trim().slice(0, NAME_MAX_LENGTH) : "Groupe sans nom",
+    };
+  }
+
+  /** @returns {{id: string, name: string}[]} Every enemy group, in creation order. */
+  function getGroups() {
+    const seen = new Set();
+    return getRawGroups()
+      .map(normalizeGroup)
+      .filter((group) => group && !seen.has(group.id) && seen.add(group.id));
+  }
+
+  /** @returns {object[]} Every enemy, sanitized, newest first. `groupId` is "" when not filed. */
   function getEnemies() {
-    return getRawEnemies().map(normalizeEnemy).filter(Boolean);
+    const groupIds = new Set(getGroups().map((group) => group.id));
+    return getRawEnemies()
+      .map(normalizeEnemy)
+      .filter(Boolean)
+      .map((enemy) => (enemy.groupId && !groupIds.has(enemy.groupId) ? { ...enemy, groupId: "" } : enemy));
   }
 
   function updateList(mutate) {
@@ -97,6 +130,15 @@
     const result = mutate(list) ?? { ok: true };
     if (result.ok) setEnemies(list);
     return result;
+  }
+
+  /** "Name", or "Name (2)", "Name (3)"... so it differs from every name in `taken`. */
+  function uniqueName(name, taken) {
+    const base = name.replace(/\s\(\d+\)$/, "");
+    if (!taken.includes(name)) return name;
+    let number = 2;
+    while (taken.includes(`${base} (${number})`)) number += 1;
+    return `${base} (${number})`;
   }
 
   function updateOne(enemyId, change) {
@@ -111,11 +153,12 @@
   // --- Mutations ---
 
   /**
-   * Add an enemy at the top of the list.
-   * @param {{name?: string, kind?: "second"|"figurants", tier?: string, count?: number}} fields
+   * Add an enemy at the top of the list, filed in a group or not.
+   * @param {{name?: string, kind?: "second"|"figurants", tier?: string, count?: number, groupId?: string}} fields
    * @returns {{ok: boolean, enemy?: object}}
    */
   function createEnemy(fields) {
+    const groupId = getGroups().some((group) => group.id === fields?.groupId) ? fields.groupId : "";
     const kind = KIND_KEYS.includes(fields?.kind) ? fields.kind : "second";
     const tier = kind === "second" ? (tierDef(fields?.tier)?.key ?? R.NPC_TIERS[0].key) : "";
     const values = suggestedValues(kind, tier, fields?.count);
@@ -128,6 +171,7 @@
       dice: values.dice,
       auto: values.auto,
       vitality: { current: values.vitality, max: values.vitality },
+      groupId,
     });
     setEnemies([enemy, ...getEnemies()]);
     return { ok: true, enemy };
@@ -183,10 +227,9 @@
       const index = list.findIndex((enemy) => enemy.id === enemyId);
       if (index === -1) return { ok: false, message: "Ennemi introuvable." };
       const source = list[index];
-      const base = source.name.replace(/\s\(\d+\)$/, "");
-      let number = 2;
-      while (list.some((enemy) => enemy.name === `${base} (${number})`)) number += 1;
-      copy = normalizeEnemy({ ...source, id: generateEnemyId(), name: `${base} (${number})`, vitality: { current: source.vitality.max, max: source.vitality.max } });
+      const name = uniqueName(source.name, list.map((enemy) => enemy.name));
+      // Same group as the original.
+      copy = normalizeEnemy({ ...source, id: generateEnemyId(), name, vitality: { current: source.vitality.max, max: source.vitality.max } });
       list.splice(index + 1, 0, copy);
       return { ok: true };
     });
@@ -202,9 +245,129 @@
     });
   }
 
+  /** Remove every enemy and every group. */
   function clearEnemies() {
-    setEnemies([]);
+    setEnemyData([], []);
     return { ok: true };
+  }
+
+  /** Remove the enemies that are not filed in a group (e.g. at the end of a fight). */
+  function clearUnfiledEnemies() {
+    setEnemies(getEnemies().filter((enemy) => enemy.groupId));
+    return { ok: true };
+  }
+
+  // --- Groups: named folders to sort enemies and export them together ---
+
+  /**
+   * @param {string} [name]
+   * @returns {{ok: boolean, group: {id: string, name: string}}}
+   */
+  function createGroup(name) {
+    const groups = getGroups();
+    const wanted = String(name ?? "").trim().slice(0, NAME_MAX_LENGTH) || `Groupe ${groups.length + 1}`;
+    const group = normalizeGroup({ name: uniqueName(wanted, groups.map((entry) => entry.name)) });
+    setEnemyData(getEnemies(), [...groups, group]);
+    return { ok: true, group };
+  }
+
+  function renameGroup(groupId, name) {
+    const groups = getGroups();
+    const group = groups.find((entry) => entry.id === groupId);
+    if (!group) return { ok: false, message: "Groupe introuvable." };
+    const wanted = String(name ?? "").trim().slice(0, NAME_MAX_LENGTH);
+    if (!wanted) return { ok: false, message: "Le groupe doit avoir un nom." };
+    const others = groups.filter((entry) => entry.id !== groupId).map((entry) => entry.name);
+    group.name = uniqueName(wanted, others);
+    setEnemyData(getEnemies(), groups);
+    return { ok: true, group };
+  }
+
+  /**
+   * Delete a group. Its enemies are deleted too, or put back among the unfiled ones.
+   * @param {string} groupId
+   * @param {{withEnemies?: boolean}} [options]
+   */
+  function deleteGroup(groupId, options) {
+    const groups = getGroups();
+    if (!groups.some((group) => group.id === groupId)) return { ok: false, message: "Groupe introuvable." };
+    const enemies = getEnemies()
+      .filter((enemy) => !(options?.withEnemies && enemy.groupId === groupId))
+      .map((enemy) => (enemy.groupId === groupId ? { ...enemy, groupId: "" } : enemy));
+    setEnemyData(enemies, groups.filter((group) => group.id !== groupId));
+    return { ok: true };
+  }
+
+  /**
+   * File an enemy in a group, or take it out ("" = not filed).
+   * @param {string} enemyId
+   * @param {string} groupId
+   */
+  function moveEnemy(enemyId, groupId) {
+    if (groupId && !getGroups().some((group) => group.id === groupId)) return { ok: false, message: "Groupe introuvable." };
+    return updateOne(enemyId, (enemy) => ({ ...enemy, groupId: groupId || "" }));
+  }
+
+  /** @returns {object[]} The enemies of a group ("" = the unfiled ones). */
+  function enemiesInGroup(groupId) {
+    return getEnemies().filter((enemy) => enemy.groupId === (groupId || ""));
+  }
+
+  // --- Export / import of a group (.json file) ---
+
+  /**
+   * Everything needed to recreate a group elsewhere: its name and its enemies (without ids,
+   * which are regenerated on import).
+   * @param {string} groupId
+   * @returns {object|null}
+   */
+  function exportGroup(groupId) {
+    const group = getGroups().find((entry) => entry.id === groupId);
+    if (!group) return null;
+    return {
+      format: EXPORT_FORMAT,
+      version: EXPORT_VERSION,
+      exportedAt: new Date().toISOString(),
+      group: { name: group.name },
+      enemies: enemiesInGroup(groupId).map(({ name, kind, tier, dice, auto, vitality }) => ({ name, kind, tier, dice, auto, vitality })),
+    };
+  }
+
+  /**
+   * Read a file made by exportGroup(). Untrusted input: every enemy goes through
+   * normalizeEnemy().
+   * @param {string} text
+   * @returns {{ok: true, name: string, enemies: object[]}|{ok: false, message: string}}
+   */
+  function parseGroupExport(text) {
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (error) {
+      return { ok: false, message: "Ce fichier n'est pas un fichier JSON valide." };
+    }
+    if (!data || data.format !== EXPORT_FORMAT || !Array.isArray(data.enemies)) {
+      return { ok: false, message: "Ce fichier n'est pas un groupe d'ennemis exporté depuis cette page." };
+    }
+    if (data.version > EXPORT_VERSION) {
+      return { ok: false, message: "Ce fichier vient d'une version plus récente de l'application." };
+    }
+    const enemies = data.enemies.map((raw) => normalizeEnemy(raw && typeof raw === "object" ? { ...raw, id: "", groupId: "" } : null)).filter(Boolean);
+    return { ok: true, name: normalizeGroup({ name: data.group?.name }).name, enemies };
+  }
+
+  /**
+   * Add an exported group as a new group (renamed "Nom (2)" if the name is taken), with
+   * fresh ids so it never collides with what is already here.
+   * @param {{name: string, enemies: object[]}} parsed - from parseGroupExport()
+   * @returns {{ok: boolean, group: {id: string, name: string}, count: number}}
+   */
+  function importGroup(parsed) {
+    const groups = getGroups();
+    const group = normalizeGroup({ name: uniqueName(parsed.name, groups.map((entry) => entry.name)) });
+    const added = parsed.enemies.map((enemy) => normalizeEnemy({ ...enemy, id: generateEnemyId(), groupId: group.id }));
+    setEnemyData([...added, ...getEnemies()], [...groups, group]);
+    return { ok: true, group, count: added.length };
   }
 
   // --- Rolls (pure) ---
@@ -263,7 +426,10 @@
     rangeLabel,
     suggestedValues,
     normalizeEnemy,
+    normalizeGroup,
     getEnemies,
+    getGroups,
+    enemiesInGroup,
     createEnemy,
     renameEnemy,
     setEnemyTier,
@@ -273,6 +439,14 @@
     duplicateEnemy,
     removeEnemy,
     clearEnemies,
+    clearUnfiledEnemies,
+    createGroup,
+    renameGroup,
+    deleteGroup,
+    moveEnemy,
+    exportGroup,
+    parseGroupExport,
+    importGroup,
     rollPool,
     helpBonus,
     enemyStatus,

@@ -19,12 +19,13 @@
     settings: `${STORAGE_PREFIX}:v${SCHEMA_VERSION}:settings`,
     missionLog: `${STORAGE_PREFIX}:v${SCHEMA_VERSION}:mission-log`,
     enemies: `${STORAGE_PREFIX}:v${SCHEMA_VERSION}:enemies`,
+    enemyGroups: `${STORAGE_PREFIX}:v${SCHEMA_VERSION}:enemy-groups`,
   };
 
   /**
    * Build the default, empty-but-valid application state.
    * Used whenever localStorage is empty, corrupted, or missing keys.
-   * @returns {{profiles: Array, activeProfileId: string|null, settings: {gmMode: boolean, showHorsCommerce: boolean}, missionLog: Array, enemies: Array}}
+   * @returns {{profiles: Array, activeProfileId: string|null, settings: {gmMode: boolean, showHorsCommerce: boolean}, missionLog: Array, enemies: Array, enemyGroups: Array}}
    */
   function getDefaultAppState() {
     return {
@@ -33,6 +34,7 @@
       settings: { gmMode: false, showHorsCommerce: false },
       missionLog: [],
       enemies: [],
+      enemyGroups: [],
     };
   }
 
@@ -123,7 +125,7 @@
   /**
    * Load the full application state from localStorage, applying migrations and
    * falling back to a clean default state for any piece that is missing or corrupted.
-   * @returns {{profiles: Array, activeProfileId: string|null, settings: {gmMode: boolean, showHorsCommerce: boolean}, missionLog: Array, enemies: Array}}
+   * @returns {{profiles: Array, activeProfileId: string|null, settings: {gmMode: boolean, showHorsCommerce: boolean}, missionLog: Array, enemies: Array, enemyGroups: Array}}
    */
   function loadAppState() {
     ensureSchemaVersion();
@@ -134,6 +136,7 @@
     const storedSettings = readJSON(KEYS.settings, defaults.settings);
     const missionLog = readJSON(KEYS.missionLog, defaults.missionLog);
     const enemies = readJSON(KEYS.enemies, defaults.enemies);
+    const enemyGroups = readJSON(KEYS.enemyGroups, defaults.enemyGroups);
 
     return {
       profiles: Array.isArray(profiles) ? profiles : defaults.profiles,
@@ -143,8 +146,9 @@
         showHorsCommerce: Boolean(storedSettings?.showHorsCommerce),
       },
       missionLog: Array.isArray(missionLog) ? missionLog : defaults.missionLog,
-      // Each enemy is sanitized by App.enemies.normalizeEnemy() when read.
+      // Each enemy / group is sanitized by App.enemies when read.
       enemies: Array.isArray(enemies) ? enemies : defaults.enemies,
+      enemyGroups: Array.isArray(enemyGroups) ? enemyGroups : defaults.enemyGroups,
     };
   }
 
@@ -194,6 +198,15 @@
   }
 
   /**
+   * Persist the GM's enemy groups (named folders, see App.enemies).
+   * @param {Array} enemyGroups
+   * @returns {void}
+   */
+  function saveEnemyGroups(enemyGroups) {
+    writeJSON(KEYS.enemyGroups, enemyGroups);
+  }
+
+  /**
    * Erase all Boutique Shinobi data from localStorage, restoring a clean slate.
    * @returns {void}
    */
@@ -204,6 +217,7 @@
       window.localStorage.removeItem(KEYS.settings);
       window.localStorage.removeItem(KEYS.missionLog);
       window.localStorage.removeItem(KEYS.enemies);
+      window.localStorage.removeItem(KEYS.enemyGroups);
       window.localStorage.removeItem(KEYS.schemaVersion);
     } catch (error) {
       console.warn("[storage] Failed to reset data.", error);
@@ -218,6 +232,7 @@
     saveSettings,
     saveMissionLog,
     saveEnemies,
+    saveEnemyGroups,
     resetAllData,
     isStorageWritable,
   };
