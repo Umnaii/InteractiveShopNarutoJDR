@@ -48,7 +48,11 @@ Pages, dans l'ordre de la navigation : **Fiche** (page d'accueil), **Inventaire*
   lambda à Jônin très puissant, ne fait que proposer des valeurs modifiables) et **groupes de
   figurants** (1 point d'énergie vitale par figurant, 1 D10 par figurant qui agit). Chaque
   carte lance ses dés, affiche le total, la qualité et l'aide apportée à un protagoniste ;
-  « Dupliquer » pour plusieurs ennemis identiques, « Retirer tous les ennemis » en fin de combat.
+  « Dupliquer » pour plusieurs ennemis identiques, « Retirer les ennemis non rangés » en fin
+  de combat. Les ennemis se rangent dans des **groupes** nommés (« Ranger dans » sur la carte
+  ou à la création) : un groupe est replié par défaut, ses ennemis n'apparaissent qu'en
+  cliquant dessus. Chaque groupe s'**exporte** en un fichier `ennemis-<nom>.json`, que
+  « Importer un groupe » recharge sur un autre appareil (toujours comme un nouveau groupe).
 - **Fiche de ninja** (onglet « Fiche ») : la fiche papier `References/ShinobiFichePerso.pdf`
   rendue interactive pour le profil actif, avec les règles du livre (création p. 36-58,
   système de jeu p. 105-115). Mode **création** avec les budgets du grade (points restants,
